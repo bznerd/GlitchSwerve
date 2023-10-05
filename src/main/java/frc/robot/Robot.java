@@ -4,16 +4,23 @@
 
 package frc.robot;
 
-//import edu.wpi.first.wpilibj.PS4Controller;
+import edu.wpi.first.wpilibj.PS4Controller;
 import edu.wpi.first.wpilibj.TimedRobot;
-import edu.wpi.first.wpilibj2.command.Command;
 import edu.wpi.first.wpilibj2.command.CommandScheduler;
+import edu.wpi.first.wpilibj2.command.Command;
 
 public class Robot extends TimedRobot {
-  private Command autonomousCommand;
-  //private PS4Controller driverController;
+  private PS4Controller driverController;
+  private System system = new System();
+  private Command autoCommand = null;
 
-  private void configureBindings() {}
+  private void configureBindings() {
+    system.configureTeleopDrive(
+      driverController::getLeftX,
+      driverController::getLeftY,
+      driverController::getRightX,
+      driverController::getR2Button);
+  }
 
   @Override
   public void robotInit() {
@@ -36,25 +43,20 @@ public class Robot extends TimedRobot {
 
   @Override
   public void autonomousInit() {
-    autonomousCommand = null;
-
-    if (autonomousCommand != null) {
-      autonomousCommand.schedule();
-    }
+    autoCommand = system.getAuto();
+    autoCommand.schedule();
   }
 
   @Override
   public void autonomousPeriodic() {}
 
   @Override
-  public void autonomousExit() {}
+  public void autonomousExit() {
+    autoCommand.cancel();
+  }
 
   @Override
-  public void teleopInit() {
-    if (autonomousCommand != null) {
-      autonomousCommand.cancel();
-    }
-  }
+  public void teleopInit() {}
 
   @Override
   public void teleopPeriodic() {}
