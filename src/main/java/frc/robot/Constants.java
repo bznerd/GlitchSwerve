@@ -12,7 +12,7 @@ import edu.wpi.first.math.geometry.Translation2d;
 
 public class Constants {
   public static class kSwerve {
-    // Chassis dimensions (meters)
+    // Chassis dimensions from wheel center to center (meters)
     public static double width = 0.5;
     public static double length = 0.5;
 
@@ -22,6 +22,13 @@ public class Constants {
 
     public static double maxTransAccel = 1.2;
     public static double maxAngAccel = 1.2;
+
+    public static class OI {
+      public static double translationGain = 0.5;
+      public static double rotationGain = 0.5;
+
+      public static boolean closedLoop = false;
+    }
 
     // Swerve uses ccw+ angular quanities and a coordinate plane with 0,0 at the robot's center
     // , forward is +x, and a module order based on the quadrant system (front left is first)
