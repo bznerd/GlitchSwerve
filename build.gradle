@@ -1,6 +1,7 @@
 plugins {
     id "java"
     id "edu.wpi.first.GradleRIO" version "2023.3.2"
+    id 'com.diffplug.spotless' version '6.12.0'
 }
 
 sourceCompatibility = JavaVersion.VERSION_11
@@ -97,3 +98,80 @@ wpi.java.configureTestTasks(test)
 tasks.withType(JavaCompile) {
     options.compilerArgs.add '-XDstringConcat=inline'
 }
+
+// Run spotless code formatter
+spotless {
+    enforceCheck = false
+    java {
+        target fileTree('.') {
+            include '**/*.java'
+            exclude '**/build/**', '**/build-*/**'
+        }
+        toggleOffOn()
+        googleJavaFormat()
+        removeUnusedImports()
+        trimTrailingWhitespace()
+        endWithNewline()
+    }
+    groovyGradle {
+        target fileTree('.') {
+            include '**/*.gradle'
+            exclude '**/build/**', '**/build-*/**'
+        }
+        greclipse()
+        indentWithSpaces(4)
+        trimTrailingWhitespace()
+        endWithNewline()
+    }
+    format 'xml', {
+        target fileTree('.') {
+            include '**/*.xml'
+            exclude '**/build/**', '**/build-*/**'
+        }
+        eclipseWtp('xml')
+        trimTrailingWhitespace()
+        indentWithSpaces(2)
+        endWithNewline()
+    }
+    format 'misc', {
+        target fileTree('.') {
+            include '**/*.md', '**/.gitignore'
+            exclude '**/build/**', '**/build-*/**'
+        }
+        trimTrailingWhitespace()
+        indentWithSpaces(2)
+        endWithNewline()
+    }
+}
+
+// Write the git branch and commit hash to a deployed file
+tasks.register("writeGitData") {
+    // Define an output stream to write to instead of terminal
+    def branchout = new ByteArrayOutputStream()
+    def commitout = new ByteArrayOutputStream()
+
+    // Execute the git command
+    exec {
+        commandLine "git", "rev-parse", "--abbrev-ref", "HEAD"
+        // Write to the output stream instead of terminal
+        standardOutput = branchout
+    }
+    // Execute the git command
+    exec {
+        commandLine "git", "rev-parse", "--short", "HEAD"
+        // Write to the output stream instead of terminal
+        standardOutput = commitout
+    }
+    // Parse the output into a string
+    def data = branchout.toString().trim() + ' ' + commitout.toString().trim()
+
+    // Create a new file
+    new File(
+            // Join project directory and deploy directory
+            projectDir.toString() + "/src/main/deploy",
+            // File name to write to
+            "gitdata.txt"
+            ).text = data // Set the contents of the file to the variable branch
+}
+
+deploy.targets.roborio.artifacts.frcStaticFileDeploy.dependsOn(writeGitData)
