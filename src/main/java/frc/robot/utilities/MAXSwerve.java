@@ -2,17 +2,17 @@ package frc.robot.utilities;
 
 import com.revrobotics.AbsoluteEncoder;
 import com.revrobotics.CANSparkMax;
-import com.revrobotics.RelativeEncoder;
-import com.revrobotics.SparkMaxPIDController;
 import com.revrobotics.CANSparkMax.ControlType;
 import com.revrobotics.CANSparkMax.IdleMode;
 import com.revrobotics.CANSparkMaxLowLevel.MotorType;
+import com.revrobotics.RelativeEncoder;
 import com.revrobotics.SparkMaxAbsoluteEncoder.Type;
-import frc.robot.Constants.kSwerve.kModule;
+import com.revrobotics.SparkMaxPIDController;
 import edu.wpi.first.math.controller.SimpleMotorFeedforward;
 import edu.wpi.first.math.geometry.Rotation2d;
 import edu.wpi.first.math.kinematics.SwerveModulePosition;
 import edu.wpi.first.math.kinematics.SwerveModuleState;
+import frc.robot.Constants.kSwerve.kModule;
 
 public class MAXSwerve {
   private SwerveModuleState targetState = new SwerveModuleState();
@@ -46,7 +46,7 @@ public class MAXSwerve {
     steerEncoder.setVelocityConversionFactor(kModule.steeringEncoderVelocityFactor);
 
     steerEncoder.setInverted(kModule.steeringEncoderInverted);
-    
+
     drivePID = driveNEO.getPIDController();
     drivePID.setFeedbackDevice(driveEncoder);
     steerPID = steerNEO.getPIDController();
@@ -64,7 +64,7 @@ public class MAXSwerve {
     drivePID.setP(kModule.drivingP);
     drivePID.setI(kModule.drivingI);
     drivePID.setD(kModule.drivingD);
-    
+
     steerPID.setP(kModule.drivingP);
     steerPID.setI(kModule.drivingI);
     steerPID.setD(kModule.drivingD);
@@ -86,33 +86,28 @@ public class MAXSwerve {
   }
 
   public SwerveModuleState getState() {
-    return new SwerveModuleState(
-      driveEncoder.getVelocity(),
-       getCorrectedSteer());
+    return new SwerveModuleState(driveEncoder.getVelocity(), getCorrectedSteer());
   }
 
   public SwerveModulePosition getPositon() {
-    return new SwerveModulePosition(
-      driveEncoder.getPosition(),
-      getCorrectedSteer());
+    return new SwerveModulePosition(driveEncoder.getPosition(), getCorrectedSteer());
   }
 
   public void setTargetState(SwerveModuleState desiredState, boolean closedLoopDrive) {
-    SwerveModuleState optimizedState = SwerveModuleState.optimize(
-      new SwerveModuleState(
-        desiredState.speedMetersPerSecond,
-        desiredState.angle.minus(new Rotation2d(chassisOffset))),
-      new Rotation2d(steerEncoder.getPosition())
-    );
+    SwerveModuleState optimizedState =
+        SwerveModuleState.optimize(
+            new SwerveModuleState(
+                desiredState.speedMetersPerSecond,
+                desiredState.angle.minus(new Rotation2d(chassisOffset))),
+            new Rotation2d(steerEncoder.getPosition()));
 
-    if (closedLoopDrive){
+    if (closedLoopDrive) {
       drivePID.setReference(
-        optimizedState.speedMetersPerSecond,
-        ControlType.kVelocity,
-        0,
-        driveFF.calculate(optimizedState.speedMetersPerSecond));
-    } 
-    else {
+          optimizedState.speedMetersPerSecond,
+          ControlType.kVelocity,
+          0,
+          driveFF.calculate(optimizedState.speedMetersPerSecond));
+    } else {
       driveNEO.setVoltage(driveFF.calculate(optimizedState.speedMetersPerSecond));
     }
 
@@ -128,8 +123,7 @@ public class MAXSwerve {
   public void setBrakeMode(boolean brake) {
     if (brake) {
       driveNEO.setIdleMode(IdleMode.kBrake);
-    }
-    else {
+    } else {
       driveNEO.setIdleMode(IdleMode.kCoast);
     }
   }

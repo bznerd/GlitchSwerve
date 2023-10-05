@@ -1,11 +1,11 @@
 package frc.robot.utilities;
 
-import edu.wpi.first.math.kinematics.ChassisSpeeds;
 import edu.wpi.first.math.MathUtil;
-import edu.wpi.first.util.WPIUtilJNI;
-import edu.wpi.first.math.Vector;
-import edu.wpi.first.math.numbers.N2;
 import edu.wpi.first.math.VecBuilder;
+import edu.wpi.first.math.Vector;
+import edu.wpi.first.math.kinematics.ChassisSpeeds;
+import edu.wpi.first.math.numbers.N2;
+import edu.wpi.first.util.WPIUtilJNI;
 
 public class ChassisLimiter {
   private ChassisSpeeds currentSpeeds = new ChassisSpeeds();
@@ -20,11 +20,11 @@ public class ChassisLimiter {
     prevTime = WPIUtilJNI.now() * 1e-6;
   }
 
-  private Vector<N2> ChassisSpeedsToVector (ChassisSpeeds chassisSpeeds) {
+  private Vector<N2> ChassisSpeedsToVector(ChassisSpeeds chassisSpeeds) {
     return VecBuilder.fill(chassisSpeeds.vxMetersPerSecond, chassisSpeeds.vyMetersPerSecond);
   }
 
-  private ChassisSpeeds applyVector (ChassisSpeeds chassisSpeeds, Vector<N2> vector) {
+  private ChassisSpeeds applyVector(ChassisSpeeds chassisSpeeds, Vector<N2> vector) {
     chassisSpeeds.vxMetersPerSecond = vector.get(0, 0);
     chassisSpeeds.vyMetersPerSecond = vector.get(1, 0);
     return chassisSpeeds;
@@ -34,18 +34,17 @@ public class ChassisLimiter {
     double currentTime = WPIUtilJNI.now() * 1e-6;
     double elapsedTime = currentTime - prevTime;
 
-    Vector<N2>  velocityDiff = (Vector<N2>) ChassisSpeedsToVector(nextSpeeds).minus(ChassisSpeedsToVector(currentSpeeds));
+    Vector<N2> velocityDiff =
+        (Vector<N2>) ChassisSpeedsToVector(nextSpeeds).minus(ChassisSpeedsToVector(currentSpeeds));
     double speedDiff = velocityDiff.norm();
 
-    double limitFactor = 
-      MathUtil.clamp(
-        speedDiff,
-        -translationLimit * elapsedTime,
-        translationLimit * elapsedTime)/speedDiff;
+    double limitFactor =
+        MathUtil.clamp(speedDiff, -translationLimit * elapsedTime, translationLimit * elapsedTime)
+            / speedDiff;
 
-    Vector<N2> velocityVector = (Vector<N2>) ChassisSpeedsToVector(nextSpeeds).plus(velocityDiff).times(limitFactor);
-    
-    
+    Vector<N2> velocityVector =
+        (Vector<N2>) ChassisSpeedsToVector(nextSpeeds).plus(velocityDiff).times(limitFactor);
+
     var limitedAngle =
         MathUtil.clamp(
             nextSpeeds.omegaRadiansPerSecond,

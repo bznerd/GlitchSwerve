@@ -1,10 +1,9 @@
 package frc.robot.subsystems;
 
-import java.util.function.BooleanSupplier;
-import java.util.function.DoubleSupplier;
-
+import edu.wpi.first.math.VecBuilder;
 import edu.wpi.first.math.estimator.SwerveDrivePoseEstimator;
 import edu.wpi.first.math.geometry.Pose2d;
+import edu.wpi.first.math.geometry.Rotation2d;
 import edu.wpi.first.math.kinematics.ChassisSpeeds;
 import edu.wpi.first.math.kinematics.SwerveDriveKinematics;
 import edu.wpi.first.math.kinematics.SwerveModulePosition;
@@ -16,29 +15,25 @@ import edu.wpi.first.wpilibj2.command.SubsystemBase;
 import frc.robot.Constants.kSwerve;
 import frc.robot.utilities.ChassisLimiter;
 import frc.robot.utilities.MAXSwerve;
-import edu.wpi.first.math.geometry.Rotation2d;
-import edu.wpi.first.math.VecBuilder;
+import java.util.function.BooleanSupplier;
+import java.util.function.DoubleSupplier;
 
 public class Swerve extends SubsystemBase {
-  private final MAXSwerve frontLeft = new MAXSwerve(
-    kSwerve.CANID.frontLeftDrive,
-    kSwerve.CANID.frontLeftSteer,
-    kSwerve.Offsets.frontLeft);
+  private final MAXSwerve frontLeft =
+      new MAXSwerve(
+          kSwerve.CANID.frontLeftDrive, kSwerve.CANID.frontLeftSteer, kSwerve.Offsets.frontLeft);
 
-  private final MAXSwerve backLeft = new MAXSwerve(
-    kSwerve.CANID.backLeftDrive,
-    kSwerve.CANID.backLeftSteer,
-    kSwerve.Offsets.backLeft);
-  
-  private final MAXSwerve backRight = new MAXSwerve(
-    kSwerve.CANID.backRightDrive,
-    kSwerve.CANID.backRightSteer,
-    kSwerve.Offsets.backRight);
+  private final MAXSwerve backLeft =
+      new MAXSwerve(
+          kSwerve.CANID.backLeftDrive, kSwerve.CANID.backLeftSteer, kSwerve.Offsets.backLeft);
 
-  private final MAXSwerve frontRight = new MAXSwerve(
-    kSwerve.CANID.frontRightDrive,
-    kSwerve.CANID.frontRightSteer,
-    kSwerve.Offsets.frontRight);
+  private final MAXSwerve backRight =
+      new MAXSwerve(
+          kSwerve.CANID.backRightDrive, kSwerve.CANID.backRightSteer, kSwerve.Offsets.backRight);
+
+  private final MAXSwerve frontRight =
+      new MAXSwerve(
+          kSwerve.CANID.frontRightDrive, kSwerve.CANID.frontRightSteer, kSwerve.Offsets.frontRight);
 
   private final Gyro gyro = new ADXRS450_Gyro();
   private final SwerveDrivePoseEstimator poseEstimator;
@@ -48,29 +43,35 @@ public class Swerve extends SubsystemBase {
 
   public Swerve() {
     limiter = new ChassisLimiter(kSwerve.maxTransAccel, kSwerve.maxAngAccel);
-    poseEstimator = new SwerveDrivePoseEstimator(
-      kSwerve.kinematics, getGyroRaw(),
-      new SwerveModulePosition[] {
-        frontLeft.getPositon(),
-        backLeft.getPositon(),
-        backRight.getPositon(),
-        frontRight.getPositon()},
-      new Pose2d());
+    poseEstimator =
+        new SwerveDrivePoseEstimator(
+            kSwerve.kinematics,
+            getGyroRaw(),
+            new SwerveModulePosition[] {
+              frontLeft.getPositon(),
+              backLeft.getPositon(),
+              backRight.getPositon(),
+              frontRight.getPositon()
+            },
+            new Pose2d());
   }
 
   // ---------- Commands ----------
 
-  public Command teleopDriveCommand(DoubleSupplier xTranslation, DoubleSupplier yTranslation, DoubleSupplier zRotation, BooleanSupplier boost) {
+  public Command teleopDriveCommand(
+      DoubleSupplier xTranslation,
+      DoubleSupplier yTranslation,
+      DoubleSupplier zRotation,
+      BooleanSupplier boost) {
     return this.run(
-      () -> driveFO(
-        joystickToChassis(xTranslation.getAsDouble(),
-          yTranslation.getAsDouble(),
-          zRotation.getAsDouble(),
-          boost.getAsBoolean()
-        ),
-        kSwerve.OI.closedLoop
-      )
-    );
+        () ->
+            driveFO(
+                joystickToChassis(
+                    xTranslation.getAsDouble(),
+                    yTranslation.getAsDouble(),
+                    zRotation.getAsDouble(),
+                    boost.getAsBoolean()),
+                kSwerve.OI.closedLoop));
   }
 
   // ---------- Public interface methods ----------
@@ -86,11 +87,11 @@ public class Swerve extends SubsystemBase {
     speeds = limiter.calculate(speeds);
     var targetStates = kSwerve.kinematics.toSwerveModuleStates(speeds);
     SwerveDriveKinematics.desaturateWheelSpeeds(
-      targetStates,
-      speeds,
-      kSwerve.kModule.maxDriveSpeed,
-      kSwerve.maxTransSpeed,
-      kSwerve.maxAngSpeed);
+        targetStates,
+        speeds,
+        kSwerve.kModule.maxDriveSpeed,
+        kSwerve.maxTransSpeed,
+        kSwerve.maxAngSpeed);
 
     chassisVelocity = kSwerve.kinematics.toChassisSpeeds(targetStates);
     setStates(targetStates, closedLoopDrive);
@@ -131,14 +132,12 @@ public class Swerve extends SubsystemBase {
   // Retrieve the positions (angle and distance traveled) for each swerve module
   private SwerveModulePosition[] getPositions() {
     return new SwerveModulePosition[] {
-      frontLeft.getPositon(),
-      backLeft.getPositon(),
-      backRight.getPositon(),
-      frontRight.getPositon()
+      frontLeft.getPositon(), backLeft.getPositon(), backRight.getPositon(), frontRight.getPositon()
     };
   }
 
-  // Set desired states (angle and velocity) to each module with an optional flag to enable closed loop control on velocity
+  // Set desired states (angle and velocity) to each module with an optional flag to enable closed
+  // loop control on velocity
   private void setStates(SwerveModuleState[] states, boolean closedLoopDrive) {
     frontLeft.setTargetState(states[0], closedLoopDrive);
     backLeft.setTargetState(states[1], closedLoopDrive);
@@ -155,7 +154,8 @@ public class Swerve extends SubsystemBase {
   }
 
   // ---------- Helpers ----------
-  private ChassisSpeeds joystickToChassis(double xTranslation, double yTranslation, double zRotation, boolean boost) {
+  private ChassisSpeeds joystickToChassis(
+      double xTranslation, double yTranslation, double zRotation, boolean boost) {
     // Square inputs for controlabitly
     xTranslation *= xTranslation;
     yTranslation *= yTranslation;
@@ -163,7 +163,7 @@ public class Swerve extends SubsystemBase {
 
     // Create a velocity vector (full speed is a unit vector)
     var translationVelocity = VecBuilder.fill(xTranslation, yTranslation);
-    
+
     // Multiply velocity vector by max speed
     translationVelocity.times(kSwerve.maxTransSpeed);
 
@@ -174,6 +174,7 @@ public class Swerve extends SubsystemBase {
     }
 
     // Construct chassis speeds and return
-    return new ChassisSpeeds(translationVelocity.get(0,0), translationVelocity.get(1,0), zRotation);
+    return new ChassisSpeeds(
+        translationVelocity.get(0, 0), translationVelocity.get(1, 0), zRotation);
   }
 }

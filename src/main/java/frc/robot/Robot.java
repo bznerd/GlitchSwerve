@@ -6,8 +6,8 @@ package frc.robot;
 
 import edu.wpi.first.wpilibj.PS4Controller;
 import edu.wpi.first.wpilibj.TimedRobot;
-import edu.wpi.first.wpilibj2.command.CommandScheduler;
 import edu.wpi.first.wpilibj2.command.Command;
+import edu.wpi.first.wpilibj2.command.CommandScheduler;
 
 public class Robot extends TimedRobot {
   private PS4Controller driverController;
@@ -16,10 +16,10 @@ public class Robot extends TimedRobot {
 
   private void configureBindings() {
     system.configureTeleopDrive(
-      driverController::getLeftX,
-      driverController::getLeftY,
-      driverController::getRightX,
-      driverController::getR2Button);
+        driverController::getLeftX,
+        driverController::getLeftY,
+        driverController::getRightX,
+        driverController::getR2Button);
   }
 
   @Override
