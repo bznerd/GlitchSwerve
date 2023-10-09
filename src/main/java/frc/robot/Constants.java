@@ -48,6 +48,23 @@ public class Constants {
 
     public static boolean invertGyro = false;
 
+    public static class Auton {
+      public static final double xP = 0;
+      public static final double xI = 0;
+      public static final double xD = 0;
+
+      public static final double yP = 0;
+      public static final double yI = 0;
+      public static final double yD = 0;
+
+      public static final double zP = 0;
+      public static final double zI = 0;
+      public static final double zD = 0;
+
+      public static final double maxAccel = 2;
+      public static final double maxVel = 2;
+    }
+
     public static class kModule {
       // The MAXSwerve module can be configured with one of three pinion gears: 12T, 13T, or 14T.
       public static final int drivingMotorPinionTeeth = 14;

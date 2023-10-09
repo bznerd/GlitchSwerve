@@ -1,7 +1,14 @@
 package frc.robot.subsystems;
 
 import com.kauailabs.navx.frc.AHRS;
+import com.pathplanner.lib.PathConstraints;
+import com.pathplanner.lib.PathPlanner;
+import com.pathplanner.lib.PathPlannerTrajectory;
+import com.pathplanner.lib.PathPoint;
+import com.pathplanner.lib.commands.FollowPathWithEvents;
+import com.pathplanner.lib.commands.PPSwerveControllerCommand;
 import edu.wpi.first.math.VecBuilder;
+import edu.wpi.first.math.controller.PIDController;
 import edu.wpi.first.math.estimator.SwerveDrivePoseEstimator;
 import edu.wpi.first.math.geometry.Pose2d;
 import edu.wpi.first.math.geometry.Rotation2d;
@@ -16,12 +23,14 @@ import edu.wpi.first.networktables.NetworkTable;
 import edu.wpi.first.networktables.NetworkTableInstance;
 import edu.wpi.first.util.sendable.SendableRegistry;
 import edu.wpi.first.wpilibj.smartdashboard.Field2d;
+import edu.wpi.first.wpilibj.smartdashboard.FieldObject2d;
 import edu.wpi.first.wpilibj.smartdashboard.SendableBuilderImpl;
 import edu.wpi.first.wpilibj2.command.Command;
 import edu.wpi.first.wpilibj2.command.SubsystemBase;
 import frc.robot.Constants.kSwerve;
 import frc.robot.utilities.ChassisLimiter;
 import frc.robot.utilities.MAXSwerve;
+import java.util.HashMap;
 import java.util.function.BooleanSupplier;
 import java.util.function.DoubleSupplier;
 
@@ -66,17 +75,27 @@ public class Swerve extends SubsystemBase {
   // Controls objects
   private final SwerveDrivePoseEstimator poseEstimator;
   private final ChassisLimiter limiter;
+  private final PIDController xController =
+      new PIDController(kSwerve.Auton.xP, kSwerve.Auton.xI, kSwerve.Auton.xD);
+  private final PIDController yController =
+      new PIDController(kSwerve.Auton.yP, kSwerve.Auton.yI, kSwerve.Auton.yD);
+  private final PIDController zController =
+      new PIDController(kSwerve.Auton.zP, kSwerve.Auton.zI, kSwerve.Auton.zD);
   private Rotation2d gyroOffset = new Rotation2d();
   private ChassisSpeeds chassisVelocity = new ChassisSpeeds();
 
   // Logging
   private final Field2d field2d = new Field2d();
+  private final FieldObject2d autonRobot = field2d.getObject("Autonomous");
   private final DoublePublisher rawGyroPub = ntTable.getDoubleTopic("Raw Gyro").publish();
   private final DoublePublisher offsetGyroPub = ntTable.getDoubleTopic("Offset Gyro").publish();
   private final DoubleArrayPublisher chassisVelPub =
       ntTable.getDoubleArrayTopic("Commanded Chassis Velocity").publish();
   private final DoubleArrayPublisher measuredVelPub =
       ntTable.getDoubleArrayTopic("Actual Chassis Velocity").publish();
+  private final DoublePublisher autonXError = poseTable.getDoubleTopic("Path x Error").publish();
+  private final DoublePublisher autonYError = poseTable.getDoubleTopic("Path y Error").publish();
+  private final DoublePublisher autonZError = poseTable.getDoubleTopic("Path z Error").publish();
 
   public Swerve() {
     limiter = new ChassisLimiter(kSwerve.maxTransAccel, kSwerve.maxAngAccel);
@@ -97,6 +116,17 @@ public class Swerve extends SubsystemBase {
     builder.setTable(poseTable);
     SendableRegistry.publish(field2d, builder);
     builder.startListeners();
+
+    // Bind Path Follower command logging methods
+    PPSwerveControllerCommand.setLoggingCallbacks(
+        autonRobot::setTrajectory,
+        autonRobot::setPose,
+        null,
+        (translation, rotation) -> {
+          autonXError.set(translation.getX());
+          autonYError.set(translation.getY());
+          autonZError.set(rotation.getRadians());
+        });
   }
 
   // ---------- Commands ----------
@@ -131,6 +161,39 @@ public class Swerve extends SubsystemBase {
   // Reset the gyro with pose estimation (don't use without vision)
   public Command resetGyroCommand() {
     return this.runOnce(this::matchGyroToPose);
+  }
+
+  // ---------- Autonomous ----------
+
+  // Follow a PathPlanner path
+  public Command followPath(PathPlannerTrajectory path, boolean transformForAlliance) {
+    return new PPSwerveControllerCommand(
+        path,
+        this::getPose,
+        this.xController,
+        this.yController,
+        this.zController,
+        (speeds) -> this.driveFO(speeds, true),
+        transformForAlliance,
+        this);
+  }
+
+  // Follow a PathPlanner path and trigger commands passed in the event map at event markers
+  public Command followPathWithEvents(
+      PathPlannerTrajectory path, HashMap<String, Command> eventMap, boolean transformForAlliance) {
+    return new FollowPathWithEvents(
+        followPath(path, transformForAlliance), path.getMarkers(), eventMap);
+  }
+
+  // Generate an on-the-fly path to reach a certain pose
+  public Command driveToPoint(Pose2d goalPose) {
+    PathPlannerTrajectory path =
+        PathPlanner.generatePath(
+            new PathConstraints(kSwerve.Auton.maxVel, kSwerve.Auton.maxAccel),
+            new PathPoint(getPose().getTranslation(), getPose().getRotation()),
+            new PathPoint(goalPose.getTranslation(), goalPose.getRotation()));
+
+    return followPath(path, false);
   }
 
   // ---------- Public interface methods ----------
