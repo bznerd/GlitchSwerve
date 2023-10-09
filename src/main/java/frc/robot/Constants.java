@@ -7,7 +7,7 @@ package frc.robot;
 import com.revrobotics.CANSparkMax.IdleMode;
 import edu.wpi.first.math.geometry.Translation2d;
 import edu.wpi.first.math.kinematics.SwerveDriveKinematics;
-// import edu.wpi.first.math.util.Units;
+import edu.wpi.first.wpilibj.SPI.Port;
 
 public class Constants {
   public static class kSwerve {
@@ -113,5 +113,7 @@ public class Constants {
       public static int frontRightDrive = 8;
       public static int frontRightSteer = 9;
     }
+
+    public static Port navxPort = Port.kMXP;
   }
 }
