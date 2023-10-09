@@ -7,7 +7,7 @@ import java.util.function.BooleanSupplier;
 import java.util.function.DoubleSupplier;
 
 public class System {
-  private Swerve swerve = new Swerve();
+  public Swerve swerve = new Swerve();
 
   public System() {
     // Call startup here

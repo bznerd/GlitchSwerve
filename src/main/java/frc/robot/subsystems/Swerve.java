@@ -1,5 +1,6 @@
 package frc.robot.subsystems;
 
+import com.kauailabs.navx.frc.AHRS;
 import edu.wpi.first.math.VecBuilder;
 import edu.wpi.first.math.estimator.SwerveDrivePoseEstimator;
 import edu.wpi.first.math.geometry.Pose2d;
@@ -8,8 +9,14 @@ import edu.wpi.first.math.kinematics.ChassisSpeeds;
 import edu.wpi.first.math.kinematics.SwerveDriveKinematics;
 import edu.wpi.first.math.kinematics.SwerveModulePosition;
 import edu.wpi.first.math.kinematics.SwerveModuleState;
-import edu.wpi.first.wpilibj.ADXRS450_Gyro;
-import edu.wpi.first.wpilibj.interfaces.Gyro;
+import edu.wpi.first.math.util.Units;
+import edu.wpi.first.networktables.DoubleArrayPublisher;
+import edu.wpi.first.networktables.DoublePublisher;
+import edu.wpi.first.networktables.NetworkTable;
+import edu.wpi.first.networktables.NetworkTableInstance;
+import edu.wpi.first.util.sendable.SendableRegistry;
+import edu.wpi.first.wpilibj.smartdashboard.Field2d;
+import edu.wpi.first.wpilibj.smartdashboard.SendableBuilderImpl;
 import edu.wpi.first.wpilibj2.command.Command;
 import edu.wpi.first.wpilibj2.command.SubsystemBase;
 import frc.robot.Constants.kSwerve;
@@ -19,27 +26,57 @@ import java.util.function.BooleanSupplier;
 import java.util.function.DoubleSupplier;
 
 public class Swerve extends SubsystemBase {
+  // NT Objects
+  NetworkTableInstance ntInst = NetworkTableInstance.getDefault();
+  NetworkTable ntTable = ntInst.getTable("system/drivetrain");
+  NetworkTable modulesTable = ntTable.getSubTable("modules");
+  NetworkTable poseTable = ntTable.getSubTable("pose");
+
+  // Hardware
   private final MAXSwerve frontLeft =
       new MAXSwerve(
-          kSwerve.CANID.frontLeftDrive, kSwerve.CANID.frontLeftSteer, kSwerve.Offsets.frontLeft);
+          kSwerve.CANID.frontLeftDrive,
+          kSwerve.CANID.frontLeftSteer,
+          kSwerve.Offsets.frontLeft,
+          modulesTable.getSubTable("FrontLeft"));
 
   private final MAXSwerve backLeft =
       new MAXSwerve(
-          kSwerve.CANID.backLeftDrive, kSwerve.CANID.backLeftSteer, kSwerve.Offsets.backLeft);
+          kSwerve.CANID.backLeftDrive,
+          kSwerve.CANID.backLeftSteer,
+          kSwerve.Offsets.backLeft,
+          modulesTable.getSubTable("BackLeft"));
 
   private final MAXSwerve backRight =
       new MAXSwerve(
-          kSwerve.CANID.backRightDrive, kSwerve.CANID.backRightSteer, kSwerve.Offsets.backRight);
+          kSwerve.CANID.backRightDrive,
+          kSwerve.CANID.backRightSteer,
+          kSwerve.Offsets.backRight,
+          modulesTable.getSubTable("BackRight"));
 
   private final MAXSwerve frontRight =
       new MAXSwerve(
-          kSwerve.CANID.frontRightDrive, kSwerve.CANID.frontRightSteer, kSwerve.Offsets.frontRight);
+          kSwerve.CANID.frontRightDrive,
+          kSwerve.CANID.frontRightSteer,
+          kSwerve.Offsets.frontRight,
+          modulesTable.getSubTable("FrontRight"));
 
-  private final Gyro gyro = new ADXRS450_Gyro();
+  private final AHRS gyro = new AHRS(kSwerve.navxPort);
+
+  // Controls objects
   private final SwerveDrivePoseEstimator poseEstimator;
   private final ChassisLimiter limiter;
   private Rotation2d gyroOffset = new Rotation2d();
   private ChassisSpeeds chassisVelocity = new ChassisSpeeds();
+
+  // Logging
+  private final Field2d field2d = new Field2d();
+  private final DoublePublisher rawGyroPub = ntTable.getDoubleTopic("Raw Gyro").publish();
+  private final DoublePublisher offsetGyroPub = ntTable.getDoubleTopic("Offset Gyro").publish();
+  private final DoubleArrayPublisher chassisVelPub =
+      ntTable.getDoubleArrayTopic("Commanded Chassis Velocity").publish();
+  private final DoubleArrayPublisher measuredVelPub =
+      ntTable.getDoubleArrayTopic("Actual Chassis Velocity").publish();
 
   public Swerve() {
     limiter = new ChassisLimiter(kSwerve.maxTransAccel, kSwerve.maxAngAccel);
@@ -54,10 +91,17 @@ public class Swerve extends SubsystemBase {
               frontRight.getPositon()
             },
             new Pose2d());
+
+    // Register the Field2d object as a sendable
+    SendableBuilderImpl builder = new SendableBuilderImpl();
+    builder.setTable(poseTable);
+    SendableRegistry.publish(field2d, builder);
+    builder.startListeners();
   }
 
   // ---------- Commands ----------
 
+  // Telop field oriented driver command
   public Command teleopDriveCommand(
       DoubleSupplier xTranslation,
       DoubleSupplier yTranslation,
@@ -72,6 +116,21 @@ public class Swerve extends SubsystemBase {
                     zRotation.getAsDouble(),
                     boost.getAsBoolean()),
                 kSwerve.OI.closedLoop));
+  }
+
+  // Put wheels into x configuration
+  public Command xSwerveCommand() {
+    return this.runOnce(this::xSwerve);
+  }
+
+  // Zero the gyro
+  public Command zeroGyroCommand() {
+    return this.runOnce(this::zeroGyro);
+  }
+
+  // Reset the gyro with pose estimation (don't use without vision)
+  public Command resetGyroCommand() {
+    return this.runOnce(this::matchGyroToPose);
   }
 
   // ---------- Public interface methods ----------
@@ -95,6 +154,14 @@ public class Swerve extends SubsystemBase {
 
     chassisVelocity = kSwerve.kinematics.toChassisSpeeds(targetStates);
     setStates(targetStates, closedLoopDrive);
+  }
+
+  // Set wheels to x configuration
+  public void xSwerve() {
+    frontLeft.setX();
+    backLeft.setX();
+    backRight.setX();
+    frontRight.setX();
   }
 
   // Retrieve the pose estimation pose
@@ -121,18 +188,30 @@ public class Swerve extends SubsystemBase {
 
   // Get direct gyro reading as Rotation2d
   private Rotation2d getGyroRaw() {
-    return new Rotation2d(gyro.getAngle());
+    return gyro.getRotation2d();
   }
 
   // Get software offset gyro angle
   private Rotation2d getGyro() {
-    return new Rotation2d(gyro.getAngle()).minus(gyroOffset);
+    return getGyroRaw().minus(gyroOffset);
+  }
+
+  // Get gyro yaw rate (radians/s CCW +)
+  private double getGyroYawRate() {
+    return Units.degreesToRadians(-gyro.getRate());
   }
 
   // Retrieve the positions (angle and distance traveled) for each swerve module
   private SwerveModulePosition[] getPositions() {
     return new SwerveModulePosition[] {
       frontLeft.getPositon(), backLeft.getPositon(), backRight.getPositon(), frontRight.getPositon()
+    };
+  }
+
+  // Retrieve the state (velocity and heading) for each swerve module
+  private SwerveModuleState[] getStates() {
+    return new SwerveModuleState[] {
+      frontLeft.getState(), backLeft.getState(), backRight.getState(), frontRight.getState()
     };
   }
 
@@ -151,6 +230,7 @@ public class Swerve extends SubsystemBase {
   @Override
   public void periodic() {
     poseEstimator.update(getGyroRaw(), getPositions());
+    log();
   }
 
   // ---------- Helpers ----------
@@ -176,5 +256,30 @@ public class Swerve extends SubsystemBase {
     // Construct chassis speeds and return
     return new ChassisSpeeds(
         translationVelocity.get(0, 0), translationVelocity.get(1, 0), zRotation);
+  }
+
+  // Log data to network tables
+  private void log() {
+    frontLeft.updateNT();
+    backLeft.updateNT();
+    backRight.updateNT();
+    frontRight.updateNT();
+
+    rawGyroPub.set(getGyroRaw().getRadians());
+    offsetGyroPub.set(getGyro().getRadians());
+    // Send the chassis velocity as a double array (vel_x, vel_y, omega_z)
+    chassisVelPub.set(
+        new double[] {
+          chassisVelocity.vxMetersPerSecond,
+          chassisVelocity.vyMetersPerSecond,
+          chassisVelocity.omegaRadiansPerSecond
+        });
+    var measuredVel = kSwerve.kinematics.toChassisSpeeds(getStates());
+    measuredVelPub.set(
+        new double[] {
+          measuredVel.vxMetersPerSecond, measuredVel.vyMetersPerSecond, getGyroYawRate()
+        });
+
+    field2d.setRobotPose(getPose());
   }
 }

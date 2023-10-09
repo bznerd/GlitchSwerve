@@ -8,17 +8,17 @@ import edu.wpi.first.networktables.NetworkTableInstance;
 import edu.wpi.first.wpilibj.DataLogManager;
 import edu.wpi.first.wpilibj.DriverStation;
 import edu.wpi.first.wpilibj.Filesystem;
-import edu.wpi.first.wpilibj.PS4Controller;
 import edu.wpi.first.wpilibj.TimedRobot;
 import edu.wpi.first.wpilibj2.command.Command;
 import edu.wpi.first.wpilibj2.command.CommandScheduler;
+import edu.wpi.first.wpilibj2.command.button.CommandPS4Controller;
 import java.io.BufferedReader;
 import java.io.File;
 import java.io.FileReader;
 import java.io.IOException;
 
 public class Robot extends TimedRobot {
-  private PS4Controller driverController;
+  private CommandPS4Controller driverController = new CommandPS4Controller(0);
   private System system = new System();
   private Command autoCommand = null;
 
@@ -27,7 +27,10 @@ public class Robot extends TimedRobot {
         driverController::getLeftX,
         driverController::getLeftY,
         driverController::getRightX,
-        driverController::getR2Button);
+        driverController.getHID()::getR2Button);
+
+    driverController.R3().onTrue(system.swerve.zeroGyroCommand());
+    driverController.share().toggleOnTrue(system.swerve.xSwerveCommand());
   }
 
   @Override
