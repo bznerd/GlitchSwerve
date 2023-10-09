@@ -86,7 +86,8 @@ public class Swerve extends SubsystemBase {
 
   // Logging
   private final Field2d field2d = new Field2d();
-  private final FieldObject2d autonRobot = field2d.getObject("Autonomous");
+  private final FieldObject2d autonRobot = field2d.getObject("Autonomous Pose");
+  private final FieldObject2d autonPath = field2d.getObject("Autonomous Path");
   private final DoublePublisher rawGyroPub = ntTable.getDoubleTopic("Raw Gyro").publish();
   private final DoublePublisher offsetGyroPub = ntTable.getDoubleTopic("Offset Gyro").publish();
   private final DoubleArrayPublisher chassisVelPub =
@@ -119,7 +120,7 @@ public class Swerve extends SubsystemBase {
 
     // Bind Path Follower command logging methods
     PPSwerveControllerCommand.setLoggingCallbacks(
-        autonRobot::setTrajectory,
+        autonPath::setTrajectory,
         autonRobot::setPose,
         null,
         (translation, rotation) -> {

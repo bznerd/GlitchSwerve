@@ -21,7 +21,8 @@ public class ChassisLimiter {
   }
 
   private Vector<N2> ChassisSpeedsToVector(ChassisSpeeds chassisSpeeds) {
-    return VecBuilder.fill(chassisSpeeds.vxMetersPerSecond, chassisSpeeds.vyMetersPerSecond);
+    return (Vector<N2>)
+        VecBuilder.fill(chassisSpeeds.vxMetersPerSecond, chassisSpeeds.vyMetersPerSecond);
   }
 
   private ChassisSpeeds applyVector(ChassisSpeeds chassisSpeeds, Vector<N2> vector) {
@@ -35,7 +36,9 @@ public class ChassisLimiter {
     double elapsedTime = currentTime - prevTime;
 
     Vector<N2> velocityDiff =
-        (Vector<N2>) ChassisSpeedsToVector(nextSpeeds).minus(ChassisSpeedsToVector(currentSpeeds));
+        new Vector<N2>(
+            ChassisSpeedsToVector(nextSpeeds).minus(ChassisSpeedsToVector(currentSpeeds)));
+
     double speedDiff = velocityDiff.norm();
 
     double limitFactor =
@@ -43,7 +46,7 @@ public class ChassisLimiter {
             / speedDiff;
 
     Vector<N2> velocityVector =
-        (Vector<N2>) ChassisSpeedsToVector(nextSpeeds).plus(velocityDiff).times(limitFactor);
+        new Vector<N2>(ChassisSpeedsToVector(nextSpeeds).plus(velocityDiff).times(limitFactor));
 
     var limitedAngle =
         MathUtil.clamp(
