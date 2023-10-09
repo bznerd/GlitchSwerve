@@ -22,6 +22,7 @@ public class Constants {
     public static double maxTransAccel = 1.2;
     public static double maxAngAccel = 1.2;
 
+    // Operator interface constants
     public static class OI {
       public static double translationGain = 0.5;
       public static double rotationGain = 0.5;
@@ -48,6 +49,7 @@ public class Constants {
 
     public static boolean invertGyro = false;
 
+    // Controller PID values for x/y translation, and z rotation
     public static class Auton {
       public static final double xP = 0;
       public static final double xI = 0;
@@ -120,6 +122,7 @@ public class Constants {
       public static final int steeringMotorCurrentLimit = 20; // amps
     }
 
+    // Motor CAN IDs
     public static class CANID {
       public static int frontLeftDrive = 2;
       public static int frontLeftSteer = 3;
