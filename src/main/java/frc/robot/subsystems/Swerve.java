@@ -27,6 +27,7 @@ import edu.wpi.first.wpilibj.smartdashboard.FieldObject2d;
 import edu.wpi.first.wpilibj.smartdashboard.SendableBuilderImpl;
 import edu.wpi.first.wpilibj2.command.Command;
 import edu.wpi.first.wpilibj2.command.SubsystemBase;
+import frc.robot.Constants.kOI;
 import frc.robot.Constants.kSwerve;
 import frc.robot.utilities.ChassisLimiter;
 import frc.robot.utilities.MAXSwerve;
@@ -146,7 +147,7 @@ public class Swerve extends SubsystemBase {
                     yTranslation.getAsDouble(),
                     zRotation.getAsDouble(),
                     boost.getAsBoolean()),
-                kSwerve.OI.closedLoop));
+                kSwerve.Teleop.closedLoop));
   }
 
   // Put wheels into x configuration
@@ -188,11 +189,23 @@ public class Swerve extends SubsystemBase {
 
   // Generate an on-the-fly path to reach a certain pose
   public Command driveToPoint(Pose2d goalPose) {
+    return driveToPoint(goalPose, goalPose.getRotation());
+  }
+
+  // Generate an on-the-fly path to reach a certain pose with a given holonomic rotation
+  public Command driveToPoint(Pose2d goalPose, Rotation2d holonomicRotation) {
     PathPlannerTrajectory path =
         PathPlanner.generatePath(
             new PathConstraints(kSwerve.Auton.maxVel, kSwerve.Auton.maxAccel),
-            new PathPoint(getPose().getTranslation(), getPose().getRotation()),
-            new PathPoint(goalPose.getTranslation(), goalPose.getRotation()));
+            new PathPoint(
+                getPose().getTranslation(),
+                new Rotation2d(
+                    chassisVelocity.vxMetersPerSecond, chassisVelocity.vyMetersPerSecond),
+                getPose().getRotation(),
+                Math.sqrt(
+                    Math.pow(chassisVelocity.vxMetersPerSecond, 2)
+                        + Math.pow(chassisVelocity.vyMetersPerSecond, 2))),
+            new PathPoint(goalPose.getTranslation(), goalPose.getRotation(), holonomicRotation));
 
     return followPath(path, false);
   }
@@ -216,7 +229,7 @@ public class Swerve extends SubsystemBase {
         kSwerve.maxTransSpeed,
         kSwerve.maxAngSpeed);
 
-    chassisVelocity = kSwerve.kinematics.toChassisSpeeds(targetStates);
+    chassisVelocity = ChassisSpeeds.fromFieldRelativeSpeeds(speeds, getGyro().unaryMinus());
     setStates(targetStates, closedLoopDrive);
   }
 
@@ -300,6 +313,12 @@ public class Swerve extends SubsystemBase {
   // ---------- Helpers ----------
   private ChassisSpeeds joystickToChassis(
       double xTranslation, double yTranslation, double zRotation, boolean boost) {
+
+    // Apply deadzones
+    if (Math.abs(xTranslation) <= kOI.translationDeadzone) xTranslation = 0;
+    if (Math.abs(yTranslation) <= kOI.translationDeadzone) yTranslation = 0;
+    if (Math.abs(zRotation) <= kOI.rotationDeadzone) zRotation = 0;
+
     // Square inputs for controlabitly
     xTranslation *= xTranslation;
     yTranslation *= yTranslation;
@@ -313,8 +332,8 @@ public class Swerve extends SubsystemBase {
 
     // Contrain velocities to boost gain
     if (!boost) {
-      translationVelocity.times(kSwerve.OI.translationGain);
-      zRotation *= kSwerve.OI.rotationGain;
+      translationVelocity.times(kSwerve.Teleop.translationGain);
+      zRotation *= kSwerve.Teleop.rotationGain;
     }
 
     // Construct chassis speeds and return

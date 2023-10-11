@@ -12,6 +12,13 @@ import edu.wpi.first.wpilibj.SPI.Port;
 public class Constants {
   public static SimMode simMode = SimMode.DESKTOP;
 
+  // Operator interface constants
+  public static class kOI {
+    public static double translationDeadzone = 0.05;
+    public static double rotationDeadzone = 0.05;
+  }
+
+  // Swerve subsystem constants (module constants included)
   public static class kSwerve {
     // Chassis dimensions from wheel center to center (meters)
     public static double width = 0.5;
@@ -25,7 +32,7 @@ public class Constants {
     public static double maxAngAccel = 1.2;
 
     // Operator interface constants
-    public static class OI {
+    public static class Teleop {
       public static double translationGain = 0.5;
       public static double rotationGain = 0.5;
 
