@@ -12,6 +12,7 @@ import edu.wpi.first.wpilibj.TimedRobot;
 import edu.wpi.first.wpilibj2.command.Command;
 import edu.wpi.first.wpilibj2.command.CommandScheduler;
 import edu.wpi.first.wpilibj2.command.button.CommandPS4Controller;
+import frc.robot.Constants.SimMode;
 import java.io.BufferedReader;
 import java.io.File;
 import java.io.FileReader;
@@ -36,12 +37,14 @@ public class Robot extends TimedRobot {
   @Override
   public void robotInit() {
     // Configure NetworkTables for simulation with photonvision running
-    if (Robot.isSimulation()) {
+    if (Robot.isSimulation() && Constants.simMode != SimMode.DESKTOP) {
       NetworkTableInstance instance = NetworkTableInstance.getDefault();
       instance.stopServer();
       // set the NT server if simulating this code.
-      // "localhost" for photon on desktop, or "photonvision.local" / "[ip-address]" for coprocessor
-      instance.setServer("localhost");
+      // "localhost" for desktop simulation with photonvision running, "photonvision.local" or IP
+      // address for hardware in loop simulation
+      if (Constants.simMode == SimMode.DESKTOP_VISION) instance.setServer("localhost");
+      else instance.setServer("photonvision.local");
       instance.startClient4("myRobot");
     }
 

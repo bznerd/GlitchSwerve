@@ -10,6 +10,8 @@ import edu.wpi.first.math.kinematics.SwerveDriveKinematics;
 import edu.wpi.first.wpilibj.SPI.Port;
 
 public class Constants {
+  public static SimMode simMode = SimMode.DESKTOP;
+
   public static class kSwerve {
     // Chassis dimensions from wheel center to center (meters)
     public static double width = 0.5;
@@ -135,5 +137,11 @@ public class Constants {
     }
 
     public static Port navxPort = Port.kMXP;
+  }
+
+  public enum SimMode {
+    HARDWARE,
+    DESKTOP_VISION,
+    DESKTOP
   }
 }
