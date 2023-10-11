@@ -118,6 +118,11 @@ public class MAXSwerve {
     return new SwerveModulePosition(driveEncoder.getPosition(), getCorrectedSteer());
   }
 
+  // Get the error of the heading
+  public Rotation2d getHeadingError() {
+    return targetState.angle.minus(getCorrectedSteer());
+  }
+
   // Set the module's target state
   public void setTargetState(SwerveModuleState desiredState, boolean closedLoopDrive) {
     // Optimize the state to prevent having to make a rotation of more than 90 degrees
@@ -127,6 +132,9 @@ public class MAXSwerve {
                 desiredState.speedMetersPerSecond,
                 desiredState.angle.minus(new Rotation2d(chassisOffset))),
             new Rotation2d(steerEncoder.getPosition()));
+
+    // Scale
+    optimizedState.speedMetersPerSecond *= Math.cos(Math.abs(getHeadingError().getRadians()));
 
     // Set the built-in PID for closed loop, or just give a regular voltage for open loop
     if (closedLoopDrive) {
