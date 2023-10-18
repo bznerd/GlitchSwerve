@@ -1,7 +1,8 @@
 package frc.robot;
 
+import edu.wpi.first.math.geometry.Pose2d;
+import edu.wpi.first.math.geometry.Rotation2d;
 import edu.wpi.first.wpilibj2.command.Command;
-import edu.wpi.first.wpilibj2.command.WaitCommand;
 import frc.robot.subsystems.Swerve;
 import java.util.function.BooleanSupplier;
 import java.util.function.DoubleSupplier;
@@ -23,6 +24,6 @@ public class System {
   }
 
   public Command getAuto() {
-    return new WaitCommand(15);
+    return swerve.driveToPoint(new Pose2d(3, 2, new Rotation2d()), new Rotation2d(1.6));
   }
 }

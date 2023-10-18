@@ -72,7 +72,7 @@ public class Constants {
       public static final double zI = 0;
       public static final double zD = 0;
 
-      public static final double maxAccel = 2;
+      public static final double maxAccel = 1;
       public static final double maxVel = 2;
     }
 
@@ -105,20 +105,20 @@ public class Constants {
           steeringEncoderPositionFactor; // radians
 
       // PID constants
-      public static final double drivingP = 0.04;
+      public static final double drivingP = 1;
       public static final double drivingI = 0;
       public static final double drivingD = 0;
-      public static final double drivingS = 0;
-      public static final double drivingV = 0;
+      public static final double drivingS = 0.1;
+      public static final double drivingV = 3;
       public static final double drivingA = 0;
       public static final double drivingMinOutput = -1;
       public static final double drivingMaxOutput = 1;
 
-      public static final double steeringP = 1;
+      public static final double steeringP = 2;
       public static final double steeringI = 0;
       public static final double steeringD = 0;
-      public static final double steeringS = 0;
-      public static final double steeringV = 0;
+      public static final double steeringS = 0.1;
+      public static final double steeringV = 1;
       public static final double steeringA = 0;
       public static final double steeringMinOutput = -1;
       public static final double steeringMaxOutput = 1;
@@ -133,14 +133,14 @@ public class Constants {
 
     // Motor CAN IDs
     public static class CANID {
-      public static int frontLeftDrive = 2;
-      public static int frontLeftSteer = 3;
-      public static int backLeftDrive = 4;
-      public static int backLeftSteer = 5;
-      public static int backRightDrive = 6;
-      public static int backRightSteer = 7;
-      public static int frontRightDrive = 8;
-      public static int frontRightSteer = 9;
+      public static int frontLeftDrive = 1;
+      public static int frontLeftSteer = 2;
+      public static int backLeftDrive = 3;
+      public static int backLeftSteer = 4;
+      public static int backRightDrive = 5;
+      public static int backRightSteer = 6;
+      public static int frontRightDrive = 7;
+      public static int frontRightSteer = 8;
     }
 
     public static Port navxPort = Port.kMXP;
