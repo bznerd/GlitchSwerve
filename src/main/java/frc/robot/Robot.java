@@ -11,7 +11,7 @@ import edu.wpi.first.wpilibj.Filesystem;
 import edu.wpi.first.wpilibj.TimedRobot;
 import edu.wpi.first.wpilibj2.command.Command;
 import edu.wpi.first.wpilibj2.command.CommandScheduler;
-import edu.wpi.first.wpilibj2.command.button.CommandPS4Controller;
+import edu.wpi.first.wpilibj2.command.button.CommandXboxController;
 import frc.robot.Constants.SimMode;
 import java.io.BufferedReader;
 import java.io.File;
@@ -19,19 +19,19 @@ import java.io.FileReader;
 import java.io.IOException;
 
 public class Robot extends TimedRobot {
-  private CommandPS4Controller driverController = new CommandPS4Controller(0);
+  private CommandXboxController driverController = new CommandXboxController(0);
   private System system = new System();
   private Command autoCommand = null;
 
   private void configureBindings() {
     system.configureTeleopDrive(
-        driverController::getLeftX,
-        driverController::getLeftY,
-        driverController::getRightX,
-        driverController.getHID()::getR2Button);
+        () -> -driverController.getLeftY(),
+        () -> -driverController.getLeftX(),
+        () -> -driverController.getRightX(),
+        driverController.getHID()::getLeftBumper);
 
-    driverController.R3().onTrue(system.swerve.zeroGyroCommand());
-    driverController.share().toggleOnTrue(system.swerve.xSwerveCommand());
+    driverController.rightStick().onTrue(system.swerve.zeroGyroCommand());
+    driverController.start().toggleOnTrue(system.swerve.xSwerveCommand());
   }
 
   @Override

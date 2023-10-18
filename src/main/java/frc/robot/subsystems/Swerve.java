@@ -98,6 +98,8 @@ public class Swerve extends SubsystemBase {
   private final DoublePublisher autonXError = poseTable.getDoubleTopic("Path x Error").publish();
   private final DoublePublisher autonYError = poseTable.getDoubleTopic("Path y Error").publish();
   private final DoublePublisher autonZError = poseTable.getDoubleTopic("Path z Error").publish();
+  private final DoubleArrayPublisher swerveStatesPub =
+      ntTable.getDoubleArrayTopic("Swerve Module States").publish();
 
   public Swerve() {
     limiter = new ChassisLimiter(kSwerve.maxTransAccel, kSwerve.maxAngAccel);
@@ -320,9 +322,9 @@ public class Swerve extends SubsystemBase {
     if (Math.abs(zRotation) <= kOI.rotationDeadzone) zRotation = 0;
 
     // Square inputs for controlabitly
-    xTranslation *= xTranslation;
-    yTranslation *= yTranslation;
-    zRotation *= zRotation;
+    xTranslation = Math.copySign(xTranslation * xTranslation, xTranslation);
+    yTranslation = Math.copySign(yTranslation * yTranslation, yTranslation);
+    zRotation = Math.copySign(zRotation * zRotation, zRotation);
 
     // Create a velocity vector (full speed is a unit vector)
     var translationVelocity = VecBuilder.fill(xTranslation, yTranslation);
@@ -333,7 +335,7 @@ public class Swerve extends SubsystemBase {
     // Contrain velocities to boost gain
     if (!boost) {
       translationVelocity.times(kSwerve.Teleop.translationGain);
-      zRotation *= kSwerve.Teleop.rotationGain;
+      zRotation *= kSwerve.maxAngSpeed * kSwerve.Teleop.rotationGain;
     }
 
     // Construct chassis speeds and return
@@ -361,6 +363,18 @@ public class Swerve extends SubsystemBase {
     measuredVelPub.set(
         new double[] {
           measuredVel.vxMetersPerSecond, measuredVel.vyMetersPerSecond, getGyroYawRate()
+        });
+
+    swerveStatesPub.set(
+        new double[] {
+          frontLeft.getTargetState().angle.getRadians(),
+              frontLeft.getTargetState().speedMetersPerSecond,
+          backLeft.getTargetState().angle.getRadians(),
+              backLeft.getTargetState().speedMetersPerSecond,
+          backRight.getTargetState().angle.getRadians(),
+              backRight.getTargetState().speedMetersPerSecond,
+          frontRight.getTargetState().angle.getRadians(),
+              frontRight.getTargetState().speedMetersPerSecond
         });
 
     field2d.setRobotPose(getPose());
