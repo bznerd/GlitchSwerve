@@ -113,6 +113,11 @@ public class MAXSwerve {
     return new SwerveModuleState(driveEncoder.getVelocity(), getCorrectedSteer());
   }
 
+  // Get the targeted state of the module (vel, heading)
+  public SwerveModuleState getTargetState() {
+    return targetState;
+  }
+
   // Get the position of the module (wheel distance traveled, heading)
   public SwerveModulePosition getPositon() {
     return new SwerveModulePosition(driveEncoder.getPosition(), getCorrectedSteer());
@@ -128,10 +133,8 @@ public class MAXSwerve {
     // Optimize the state to prevent having to make a rotation of more than 90 degrees
     SwerveModuleState optimizedState =
         SwerveModuleState.optimize(
-            new SwerveModuleState(
-                desiredState.speedMetersPerSecond,
-                desiredState.angle.minus(new Rotation2d(chassisOffset))),
-            new Rotation2d(steerEncoder.getPosition()));
+            new SwerveModuleState(desiredState.speedMetersPerSecond, desiredState.angle),
+            getCorrectedSteer());
 
     // Scale
     optimizedState.speedMetersPerSecond *= Math.cos(Math.abs(getHeadingError().getRadians()));
@@ -147,7 +150,9 @@ public class MAXSwerve {
       driveNEO.setVoltage(driveFF.calculate(optimizedState.speedMetersPerSecond));
     }
 
-    steerPID.setReference(optimizedState.angle.getRadians(), ControlType.kPosition);
+    steerPID.setReference(
+        optimizedState.angle.minus(new Rotation2d(chassisOffset)).getRadians(),
+        ControlType.kPosition);
 
     // Record the target state
     targetState = optimizedState;
@@ -177,7 +182,7 @@ public class MAXSwerve {
     goalVelPub.set(targetState.speedMetersPerSecond);
     goalHeadingPub.set(targetState.angle.getRadians());
     measVelPub.set(driveEncoder.getVelocity());
-    measHeadingPub.set(steerEncoder.getPosition());
+    measHeadingPub.set(getCorrectedSteer().getRadians());
     voltagesPub.set(
         new double[] {
           driveNEO.getAppliedOutput() * driveNEO.getBusVoltage(),
