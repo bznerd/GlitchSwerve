@@ -7,6 +7,7 @@ package frc.robot;
 import com.revrobotics.CANSparkMax.IdleMode;
 import edu.wpi.first.math.geometry.Translation2d;
 import edu.wpi.first.math.kinematics.SwerveDriveKinematics;
+import edu.wpi.first.math.util.Units;
 import edu.wpi.first.wpilibj.SPI.Port;
 
 public class Constants {
@@ -16,6 +17,13 @@ public class Constants {
   public static class kOI {
     public static double translationDeadzone = 0.05;
     public static double rotationDeadzone = 0.05;
+  }
+
+  // Sim Modes
+  public enum SimMode {
+    HARDWARE,
+    DESKTOP_VISION,
+    DESKTOP
   }
 
   // Swerve subsystem constants (module constants included)
@@ -28,8 +36,8 @@ public class Constants {
     public static double maxTransSpeed = 5;
     public static double maxAngSpeed = 2 * Math.PI;
 
-    public static double maxTransAccel = 1.2;
-    public static double maxAngAccel = 1.2;
+    public static double maxTransAccel = 1.15 * 9.81;
+    public static double maxAngAccel = 2;
 
     // Operator interface constants
     public static class Teleop {
@@ -38,6 +46,10 @@ public class Constants {
 
       public static boolean closedLoop = false;
     }
+
+    // NavX
+    public static boolean invertGyro = false;
+    public static Port navxPort = Port.kMXP;
 
     // Swerve uses ccw+ angular quanities and a coordinate plane with 0,0 at the robot's center
     // , forward is +x, and a module order based on the quadrant system (front left is first)
@@ -56,79 +68,85 @@ public class Constants {
       public static double frontRight = -Math.PI / 2;
     }
 
-    public static boolean invertGyro = false;
-
     // Controller PID values for x/y translation, and z rotation
     public static class Auton {
       public static final double xP = 0;
-      public static final double xI = 0;
       public static final double xD = 0;
 
       public static final double yP = 0;
-      public static final double yI = 0;
       public static final double yD = 0;
 
       public static final double zP = 0;
-      public static final double zI = 0;
       public static final double zD = 0;
 
-      public static final double maxAccel = 1;
-      public static final double maxVel = 2;
+      public static final double maxAccel = 4;
+      public static final double maxVel = 3.5;
     }
 
     public static class kModule {
       // The MAXSwerve module can be configured with one of three pinion gears: 12T, 13T, or 14T.
-      public static final int drivingMotorPinionTeeth = 14;
+      public static final int drivePinionTeeth = 14;
+      public static final boolean invertSteerEncoder = true;
 
-      public static final boolean steeringEncoderInverted = true;
+      // Controls Constants
+      public static class kDrive {
+        public static final double kP = 1;
+        public static final double kD = 0;
+        public static final double kS = 0.1;
+        public static final double kV = 3;
+        public static final double kA = 0;
+        public static final double minOutput = -1;
+        public static final double maxOutput = 1;
+      }
 
-      // Physical dimensions/values
-      public static final double kWheelDiameterMeters = 0.0762;
-      public static final double kWheelCircumferenceMeters = kWheelDiameterMeters * Math.PI;
-      public static final double drivingMotorReduction =
-          (45.0 * 22) / (drivingMotorPinionTeeth * 15);
-      public static final double steeringMotorReduction = 1;
-      public static final double maxDriveSpeed = 4;
-
-      // Encoders
-      public static final double drivingEncoderPositionFactor =
-          (kWheelDiameterMeters * Math.PI) / drivingMotorReduction; // meters
-      public static final double drivingEncoderVelocityFactor =
-          ((kWheelDiameterMeters * Math.PI) / drivingMotorReduction) / 60.0; // meters per second
-
-      public static final double steeringEncoderPositionFactor = (2 * Math.PI); // radians
-      public static final double steeringEncoderVelocityFactor =
-          (2 * Math.PI) / 60.0; // radians per second
-
-      public static final double steeringEncoderPositionPIDMinInput = 0; // radians
-      public static final double steeringEncoderPositionPIDMaxInput =
-          steeringEncoderPositionFactor; // radians
-
-      // PID constants
-      public static final double drivingP = 1;
-      public static final double drivingI = 0;
-      public static final double drivingD = 0;
-      public static final double drivingS = 0.1;
-      public static final double drivingV = 3;
-      public static final double drivingA = 0;
-      public static final double drivingMinOutput = -1;
-      public static final double drivingMaxOutput = 1;
-
-      public static final double steeringP = 2;
-      public static final double steeringI = 0;
-      public static final double steeringD = 0;
-      public static final double steeringS = 0.1;
-      public static final double steeringV = 1;
-      public static final double steeringA = 0;
-      public static final double steeringMinOutput = -1;
-      public static final double steeringMaxOutput = 1;
+      public static class kSteer {
+        public static final double kP = 1;
+        public static final double kD = 0;
+        public static final double minOutput = -1;
+        public static final double maxOutput = 1;
+      }
 
       // Motor configs
       public static final IdleMode drivingMotorIdleMode = IdleMode.kBrake;
       public static final IdleMode steeringMotorIdleMode = IdleMode.kBrake;
 
-      public static final int drivingMotorCurrentLimit = 50; // amps
-      public static final int steeringMotorCurrentLimit = 20; // amps
+      public static final int driveSmartCurrentLimit = 50; // amps
+      public static final int driveMaxCurrent = 80; // amps
+      public static final int steerSmartCurrentLimit = 20; // amps
+      public static final int steerMaxCurrent = 35; // amps
+
+      // Physical dimensions/values
+      public static final double wheelDiameter = Units.inchesToMeters(3);
+      public static final double wheelCircumference = wheelDiameter * Math.PI; // meters
+      public static final double driveMotorReduction = (45.0 * 22) / (drivePinionTeeth * 15);
+      public static final double steerMotorReduction = 9424.0 / 203.0;
+
+      // Motor physics
+      public static final double neoFreeSpeed = 5820.0 / 60; // rot/s
+      public static final double neoFreeCurrent = 1.7; // amps
+      public static final double neoStallTorque = 3.28; // Nm
+      public static final double neoStallCurrent = 181; // amps
+
+      public static final double neo550FreeSpeed = 11710.0 / 60;
+      public static final double neo550FreeCurrent = 1.1;
+      public static final double neo550StallTorque = 1.08;
+      public static final double neo550StallCurrent = 111;
+
+      public static final double maxWheelSpeed =
+          (neoFreeSpeed / driveMotorReduction) * (wheelDiameter * Math.PI); // m/s
+
+      // Encoders
+      public static final double drivingEncoderPositionFactor =
+          (wheelDiameter * Math.PI) / driveMotorReduction; // meters
+      public static final double drivingEncoderVelocityFactor =
+          ((wheelDiameter * Math.PI) / driveMotorReduction) / 60.0; // m/s
+
+      public static final double steeringEncoderPositionFactor = (2 * Math.PI); // radians
+      public static final double steeringEncoderVelocityFactor = (2 * Math.PI) / 60.0; // rad/s
+
+      public static final double steeringEncoderPositionPIDMinInput = 0; // radians
+      public static final double steeringEncoderPositionPIDMaxInput =
+          steeringEncoderPositionFactor; // radians
     }
 
     // Motor CAN IDs
@@ -142,13 +160,5 @@ public class Constants {
       public static int frontRightDrive = 7;
       public static int frontRightSteer = 8;
     }
-
-    public static Port navxPort = Port.kMXP;
-  }
-
-  public enum SimMode {
-    HARDWARE,
-    DESKTOP_VISION,
-    DESKTOP
   }
 }
