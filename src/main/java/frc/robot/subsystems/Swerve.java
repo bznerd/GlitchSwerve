@@ -109,6 +109,7 @@ public class Swerve extends SubsystemBase {
 
   public Swerve() {
     limiter = new ChassisLimiter(kSwerve.maxTransAccel, kSwerve.maxAngAccel);
+    zController.enableContinuousInput(0, 2 * Math.PI);
     poseEstimator =
         new SwerveDrivePoseEstimator(
             kSwerve.kinematics,
@@ -158,6 +159,21 @@ public class Swerve extends SubsystemBase {
                 kSwerve.Teleop.closedLoop));
   }
 
+  public Command semiAutoDriveCommand(
+      DoubleSupplier xTranslation,
+      DoubleSupplier yTranslation,
+      Rotation2d heading,
+      BooleanSupplier boost) {
+    return this.run(
+        () -> {
+          var speeds =
+              joystickToChassis(
+                  xTranslation.getAsDouble(), yTranslation.getAsDouble(), 0, boost.getAsBoolean());
+          speeds.omegaRadiansPerSecond =
+              zController.calculate(getPose().getRotation().getRadians(), heading.getRadians());
+          driveFO(speeds, false);
+        });
+  }
   // Put wheels into x configuration
   public Command xSwerveCommand() {
     return this.startEnd(this::xSwerve, () -> {});

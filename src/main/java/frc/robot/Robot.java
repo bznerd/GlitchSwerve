@@ -21,6 +21,7 @@ import java.io.BufferedReader;
 import java.io.File;
 import java.io.FileReader;
 import java.io.IOException;
+import java.util.function.Function;
 
 public class Robot extends TimedRobot {
   private CommandXboxController driverController = new CommandXboxController(0);
@@ -34,6 +35,22 @@ public class Robot extends TimedRobot {
             () -> -driverController.getLeftX(),
             () -> -driverController.getRightX(),
             driverController.getHID()::getLeftBumper));
+
+    Function<Rotation2d, Command> headingCommand =
+        (heading) -> {
+          return swerve
+              .semiAutoDriveCommand(
+                  () -> -driverController.getLeftY(),
+                  () -> -driverController.getLeftX(),
+                  heading,
+                  driverController.getHID()::getLeftBumper)
+              .until(() -> Math.abs(driverController.getRightX()) > 0.2);
+        };
+
+    driverController.povUp().onTrue(headingCommand.apply(new Rotation2d()));
+    driverController.povRight().onTrue(headingCommand.apply(Rotation2d.fromDegrees(-90)));
+    driverController.povDown().onTrue(headingCommand.apply(Rotation2d.fromDegrees(180)));
+    driverController.povLeft().onTrue(headingCommand.apply(Rotation2d.fromDegrees(90)));
 
     driverController.rightStick().onTrue(swerve.zeroGyroCommand());
     driverController.start().toggleOnTrue(swerve.xSwerveCommand());

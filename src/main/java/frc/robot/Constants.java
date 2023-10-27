@@ -76,7 +76,7 @@ public class Constants {
       public static final double yP = 0;
       public static final double yD = 0;
 
-      public static final double zP = 0;
+      public static final double zP = 3;
       public static final double zD = 0;
 
       public static final double maxAccel = 4;
