@@ -16,6 +16,7 @@ import edu.wpi.first.wpilibj2.command.CommandScheduler;
 import edu.wpi.first.wpilibj2.command.ProxyCommand;
 import edu.wpi.first.wpilibj2.command.button.CommandXboxController;
 import frc.robot.Constants.SimMode;
+import frc.robot.subsystems.Swerve;
 import java.io.BufferedReader;
 import java.io.File;
 import java.io.FileReader;
@@ -23,22 +24,22 @@ import java.io.IOException;
 
 public class Robot extends TimedRobot {
   private CommandXboxController driverController = new CommandXboxController(0);
-  private System system = new System();
+  private Swerve swerve = new Swerve();
   private Command autoCommand = null;
 
   private void configureBindings() {
-    system.configureTeleopDrive(
-        () -> -driverController.getLeftY(),
-        () -> -driverController.getLeftX(),
-        () -> -driverController.getRightX(),
-        driverController.getHID()::getLeftBumper);
+    swerve.setDefaultCommand(
+        swerve.teleopDriveCommand(
+            () -> -driverController.getLeftY(),
+            () -> -driverController.getLeftX(),
+            () -> -driverController.getRightX(),
+            driverController.getHID()::getLeftBumper));
 
-    driverController.rightStick().onTrue(system.swerve.zeroGyroCommand());
-    driverController.start().toggleOnTrue(system.swerve.xSwerveCommand());
+    driverController.rightStick().onTrue(swerve.zeroGyroCommand());
+    driverController.start().toggleOnTrue(swerve.xSwerveCommand());
     driverController
         .a()
-        .onTrue(
-            new ProxyCommand(() -> system.swerve.driveToPoint(new Pose2d(8, 4, new Rotation2d()))));
+        .onTrue(new ProxyCommand(() -> swerve.driveToPoint(new Pose2d(8, 4, new Rotation2d()))));
   }
 
   @Override
@@ -86,7 +87,8 @@ public class Robot extends TimedRobot {
 
   @Override
   public void autonomousInit() {
-    autoCommand = system.getAuto();
+    autoCommand =
+        swerve.driveToPoint(new Pose2d(3, 0, new Rotation2d()), Rotation2d.fromDegrees(90));
     autoCommand.schedule();
   }
 
