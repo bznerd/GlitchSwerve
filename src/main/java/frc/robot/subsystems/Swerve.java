@@ -7,6 +7,7 @@ import com.pathplanner.lib.PathPlannerTrajectory;
 import com.pathplanner.lib.PathPoint;
 import com.pathplanner.lib.commands.FollowPathWithEvents;
 import com.pathplanner.lib.commands.PPSwerveControllerCommand;
+import edu.wpi.first.hal.SimDouble;
 import edu.wpi.first.math.VecBuilder;
 import edu.wpi.first.math.controller.PIDController;
 import edu.wpi.first.math.estimator.SwerveDrivePoseEstimator;
@@ -22,6 +23,7 @@ import edu.wpi.first.networktables.DoublePublisher;
 import edu.wpi.first.networktables.NetworkTable;
 import edu.wpi.first.networktables.NetworkTableInstance;
 import edu.wpi.first.util.sendable.SendableRegistry;
+import edu.wpi.first.wpilibj.simulation.SimDeviceSim;
 import edu.wpi.first.wpilibj.smartdashboard.Field2d;
 import edu.wpi.first.wpilibj.smartdashboard.FieldObject2d;
 import edu.wpi.first.wpilibj.smartdashboard.SendableBuilderImpl;
@@ -71,17 +73,17 @@ public class Swerve extends SubsystemBase {
           kSwerve.Offsets.frontRight,
           modulesTable.getSubTable("FrontRight"));
 
-  private final AHRS gyro = new AHRS(kSwerve.navxPort);
+  private final AHRS navX = new AHRS(kSwerve.navxPort);
 
   // Controls objects
   private final SwerveDrivePoseEstimator poseEstimator;
   private final ChassisLimiter limiter;
   private final PIDController xController =
-      new PIDController(kSwerve.Auton.xP, kSwerve.Auton.xI, kSwerve.Auton.xD);
+      new PIDController(kSwerve.Auton.xP, 0, kSwerve.Auton.xD);
   private final PIDController yController =
-      new PIDController(kSwerve.Auton.yP, kSwerve.Auton.yI, kSwerve.Auton.yD);
+      new PIDController(kSwerve.Auton.yP, 0, kSwerve.Auton.yD);
   private final PIDController zController =
-      new PIDController(kSwerve.Auton.zP, kSwerve.Auton.zI, kSwerve.Auton.zD);
+      new PIDController(kSwerve.Auton.zP, 0, kSwerve.Auton.zD);
   private Rotation2d gyroOffset = new Rotation2d();
   private ChassisSpeeds chassisVelocity = new ChassisSpeeds();
 
@@ -100,6 +102,10 @@ public class Swerve extends SubsystemBase {
   private final DoublePublisher autonZError = poseTable.getDoubleTopic("Path z Error").publish();
   private final DoubleArrayPublisher swerveStatesPub =
       ntTable.getDoubleArrayTopic("Swerve Module States").publish();
+
+  // Simulation
+  private final SimDeviceSim simNavX = new SimDeviceSim("navX-Sensor", 0);
+  private final SimDouble simNavXYaw = simNavX.getDouble("Yaw");
 
   public Swerve() {
     limiter = new ChassisLimiter(kSwerve.maxTransAccel, kSwerve.maxAngAccel);
@@ -135,7 +141,7 @@ public class Swerve extends SubsystemBase {
 
   // ---------- Commands ----------
 
-  // Telop field oriented driver command
+  // Telop field oriented driver commands
   public Command teleopDriveCommand(
       DoubleSupplier xTranslation,
       DoubleSupplier yTranslation,
@@ -154,7 +160,7 @@ public class Swerve extends SubsystemBase {
 
   // Put wheels into x configuration
   public Command xSwerveCommand() {
-    return this.runOnce(this::xSwerve);
+    return this.startEnd(this::xSwerve, () -> {});
   }
 
   // Zero the gyro
@@ -177,7 +183,7 @@ public class Swerve extends SubsystemBase {
         this.xController,
         this.yController,
         this.zController,
-        (speeds) -> this.driveFO(speeds, true),
+        (speeds) -> this.drive(speeds, true),
         transformForAlliance,
         this);
   }
@@ -224,12 +230,7 @@ public class Swerve extends SubsystemBase {
   public void drive(ChassisSpeeds speeds, boolean closedLoopDrive) {
     speeds = limiter.calculate(speeds);
     var targetStates = kSwerve.kinematics.toSwerveModuleStates(speeds);
-    SwerveDriveKinematics.desaturateWheelSpeeds(
-        targetStates,
-        speeds,
-        kSwerve.kModule.maxDriveSpeed,
-        kSwerve.maxTransSpeed,
-        kSwerve.maxAngSpeed);
+    SwerveDriveKinematics.desaturateWheelSpeeds(targetStates, kSwerve.kModule.maxWheelSpeed);
 
     chassisVelocity = ChassisSpeeds.fromFieldRelativeSpeeds(speeds, getGyro().unaryMinus());
     setStates(targetStates, closedLoopDrive);
@@ -267,7 +268,7 @@ public class Swerve extends SubsystemBase {
 
   // Get direct gyro reading as Rotation2d
   private Rotation2d getGyroRaw() {
-    return gyro.getRotation2d();
+    return navX.getRotation2d();
   }
 
   // Get software offset gyro angle
@@ -277,7 +278,7 @@ public class Swerve extends SubsystemBase {
 
   // Get gyro yaw rate (radians/s CCW +)
   private double getGyroYawRate() {
-    return Units.degreesToRadians(-gyro.getRate());
+    return Units.degreesToRadians(-navX.getRate());
   }
 
   // Retrieve the positions (angle and distance traveled) for each swerve module
@@ -308,7 +309,10 @@ public class Swerve extends SubsystemBase {
   // Update pose estimator and log data
   @Override
   public void periodic() {
+    simNavXYaw.set(
+        simNavXYaw.get() + chassisVelocity.omegaRadiansPerSecond * -360 / (2 * Math.PI) * 0.02);
     poseEstimator.update(getGyroRaw(), getPositions());
+    poseEstimator.addVisionMeasurement(getPose(), getGyroYawRate());
     log();
   }
 
@@ -330,11 +334,11 @@ public class Swerve extends SubsystemBase {
     var translationVelocity = VecBuilder.fill(xTranslation, yTranslation);
 
     // Multiply velocity vector by max speed
-    translationVelocity.times(kSwerve.maxTransSpeed);
+    translationVelocity = translationVelocity.times(kSwerve.maxTransSpeed);
 
     // Contrain velocities to boost gain
     if (!boost) {
-      translationVelocity.times(kSwerve.Teleop.translationGain);
+      translationVelocity = translationVelocity.times(kSwerve.Teleop.translationGain);
       zRotation *= kSwerve.maxAngSpeed * kSwerve.Teleop.rotationGain;
     }
 
@@ -359,7 +363,9 @@ public class Swerve extends SubsystemBase {
           chassisVelocity.vyMetersPerSecond,
           chassisVelocity.omegaRadiansPerSecond
         });
-    var measuredVel = kSwerve.kinematics.toChassisSpeeds(getStates());
+    var measuredVel =
+        ChassisSpeeds.fromFieldRelativeSpeeds(
+            kSwerve.kinematics.toChassisSpeeds(getStates()), getGyro().unaryMinus());
     measuredVelPub.set(
         new double[] {
           measuredVel.vxMetersPerSecond, measuredVel.vyMetersPerSecond, getGyroYawRate()

@@ -15,6 +15,7 @@ import edu.wpi.first.math.kinematics.SwerveModuleState;
 import edu.wpi.first.networktables.DoubleArrayPublisher;
 import edu.wpi.first.networktables.DoublePublisher;
 import edu.wpi.first.networktables.NetworkTable;
+import edu.wpi.first.wpilibj.RobotBase;
 import frc.robot.Constants.kSwerve.kModule;
 
 public class MAXSwerve {
@@ -31,6 +32,7 @@ public class MAXSwerve {
   // Controls
   private final SparkMaxPIDController drivePID;
   private final SparkMaxPIDController steerPID;
+
   private final SimpleMotorFeedforward driveFF;
 
   // Logging
@@ -40,6 +42,9 @@ public class MAXSwerve {
   private final DoublePublisher measVelPub;
   private final DoublePublisher measHeadingPub;
   private final DoubleArrayPublisher voltagesPub;
+
+  // Simulation
+  private double simDrivePosition = 0;
 
   public MAXSwerve(int driveCANId, int steerCANId, double offset, NetworkTable table) {
     chassisOffset = offset;
@@ -57,7 +62,7 @@ public class MAXSwerve {
     driveEncoder.setVelocityConversionFactor(kModule.drivingEncoderVelocityFactor);
     steerEncoder.setVelocityConversionFactor(kModule.steeringEncoderVelocityFactor);
 
-    steerEncoder.setInverted(kModule.steeringEncoderInverted);
+    steerEncoder.setInverted(kModule.invertSteerEncoder);
 
     // Initialize controls objects
     drivePID = driveNEO.getPIDController();
@@ -65,34 +70,34 @@ public class MAXSwerve {
     steerPID = steerNEO.getPIDController();
     steerPID.setFeedbackDevice(steerEncoder);
 
-    driveFF = new SimpleMotorFeedforward(kModule.drivingS, kModule.drivingV, kModule.drivingA);
+    driveFF = new SimpleMotorFeedforward(kModule.kDrive.kS, kModule.kDrive.kV, kModule.kDrive.kA);
 
-    drivePID.setOutputRange(kModule.drivingMinOutput, kModule.drivingMaxOutput);
-    steerPID.setOutputRange(kModule.steeringMinOutput, kModule.steeringMaxOutput);
+    drivePID.setOutputRange(kModule.kDrive.minOutput, kModule.kDrive.maxOutput);
+    steerPID.setOutputRange(kModule.kSteer.minOutput, kModule.kSteer.maxOutput);
 
     steerPID.setPositionPIDWrappingEnabled(true);
     steerPID.setPositionPIDWrappingMaxInput(kModule.steeringEncoderPositionPIDMaxInput);
     steerPID.setPositionPIDWrappingMinInput(kModule.steeringEncoderPositionPIDMinInput);
 
-    drivePID.setP(kModule.drivingP);
-    drivePID.setI(kModule.drivingI);
-    drivePID.setD(kModule.drivingD);
+    drivePID.setP(kModule.kDrive.kP);
+    drivePID.setD(kModule.kDrive.kD);
 
-    steerPID.setP(kModule.drivingP);
-    steerPID.setI(kModule.drivingI);
-    steerPID.setD(kModule.drivingD);
+    steerPID.setP(kModule.kSteer.kP);
+    steerPID.setD(kModule.kSteer.kD);
 
     // Configure motor controllers
     driveNEO.setIdleMode(IdleMode.kBrake);
     steerNEO.setIdleMode(IdleMode.kBrake);
 
-    driveNEO.setSmartCurrentLimit(kModule.drivingMotorCurrentLimit);
-    steerNEO.setSmartCurrentLimit(kModule.steeringMotorCurrentLimit);
+    driveNEO.setSmartCurrentLimit(kModule.driveSmartCurrentLimit);
+    driveNEO.setSecondaryCurrentLimit(kModule.driveMaxCurrent);
+    steerNEO.setSmartCurrentLimit(kModule.steerSmartCurrentLimit);
+    steerNEO.setSecondaryCurrentLimit(kModule.steerMaxCurrent);
 
     driveNEO.burnFlash();
     steerNEO.burnFlash();
 
-    targetState.angle = new Rotation2d(steerEncoder.getPosition());
+    if (!RobotBase.isReal()) targetState.angle = new Rotation2d(steerEncoder.getPosition());
 
     // Start NT publishers for logging
     moduleTable = table;
@@ -105,11 +110,13 @@ public class MAXSwerve {
 
   // Get the corrected (for chassis offset) heading
   public Rotation2d getCorrectedSteer() {
+    if (RobotBase.isSimulation()) return targetState.angle;
     return new Rotation2d(steerEncoder.getPosition() + chassisOffset);
   }
 
   // Get the state of the module (vel, heading)
   public SwerveModuleState getState() {
+    if (RobotBase.isSimulation()) return targetState;
     return new SwerveModuleState(driveEncoder.getVelocity(), getCorrectedSteer());
   }
 
@@ -120,6 +127,8 @@ public class MAXSwerve {
 
   // Get the position of the module (wheel distance traveled, heading)
   public SwerveModulePosition getPositon() {
+    if (RobotBase.isSimulation())
+      return new SwerveModulePosition(simDrivePosition, getCorrectedSteer());
     return new SwerveModulePosition(driveEncoder.getPosition(), getCorrectedSteer());
   }
 
@@ -156,6 +165,8 @@ public class MAXSwerve {
 
     // Record the target state
     targetState = optimizedState;
+    // Forward euler on the position in sim
+    if (RobotBase.isSimulation()) simDrivePosition += targetState.speedMetersPerSecond * 0.02;
   }
 
   // Set the module to the chassis X configuraiton
@@ -166,6 +177,7 @@ public class MAXSwerve {
   // Reset the drive encoder to zero (reset for odometry)
   public void resetEncoder() {
     driveEncoder.setPosition(0);
+    if (RobotBase.isSimulation()) simDrivePosition = 0;
   }
 
   // Put the drive motors into or out of brake mode

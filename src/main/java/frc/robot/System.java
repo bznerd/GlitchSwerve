@@ -24,6 +24,7 @@ public class System {
   }
 
   public Command getAuto() {
-    return swerve.driveToPoint(new Pose2d(3, 2, new Rotation2d()), new Rotation2d(1.6));
+    return swerve.driveToPoint(new Pose2d(3, 0, new Rotation2d()), Rotation2d.fromDegrees(90));
+    // return swerve.driveToPoint(new Pose2d(3, 2, new Rotation2d()), new Rotation2d(1.6));
   }
 }

@@ -4,6 +4,8 @@
 
 package frc.robot;
 
+import edu.wpi.first.math.geometry.Pose2d;
+import edu.wpi.first.math.geometry.Rotation2d;
 import edu.wpi.first.networktables.NetworkTableInstance;
 import edu.wpi.first.wpilibj.DataLogManager;
 import edu.wpi.first.wpilibj.DriverStation;
@@ -11,6 +13,7 @@ import edu.wpi.first.wpilibj.Filesystem;
 import edu.wpi.first.wpilibj.TimedRobot;
 import edu.wpi.first.wpilibj2.command.Command;
 import edu.wpi.first.wpilibj2.command.CommandScheduler;
+import edu.wpi.first.wpilibj2.command.ProxyCommand;
 import edu.wpi.first.wpilibj2.command.button.CommandXboxController;
 import frc.robot.Constants.SimMode;
 import java.io.BufferedReader;
@@ -32,6 +35,10 @@ public class Robot extends TimedRobot {
 
     driverController.rightStick().onTrue(system.swerve.zeroGyroCommand());
     driverController.start().toggleOnTrue(system.swerve.xSwerveCommand());
+    driverController
+        .a()
+        .onTrue(
+            new ProxyCommand(() -> system.swerve.driveToPoint(new Pose2d(8, 4, new Rotation2d()))));
   }
 
   @Override
