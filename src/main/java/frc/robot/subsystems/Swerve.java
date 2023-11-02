@@ -13,6 +13,7 @@ import edu.wpi.first.math.controller.PIDController;
 import edu.wpi.first.math.estimator.SwerveDrivePoseEstimator;
 import edu.wpi.first.math.geometry.Pose2d;
 import edu.wpi.first.math.geometry.Rotation2d;
+import edu.wpi.first.math.geometry.Twist2d;
 import edu.wpi.first.math.kinematics.ChassisSpeeds;
 import edu.wpi.first.math.kinematics.SwerveDriveKinematics;
 import edu.wpi.first.math.kinematics.SwerveModulePosition;
@@ -23,6 +24,7 @@ import edu.wpi.first.networktables.DoublePublisher;
 import edu.wpi.first.networktables.NetworkTable;
 import edu.wpi.first.networktables.NetworkTableInstance;
 import edu.wpi.first.util.sendable.SendableRegistry;
+import edu.wpi.first.wpilibj.RobotBase;
 import edu.wpi.first.wpilibj.simulation.SimDeviceSim;
 import edu.wpi.first.wpilibj.smartdashboard.Field2d;
 import edu.wpi.first.wpilibj.smartdashboard.FieldObject2d;
@@ -120,7 +122,7 @@ public class Swerve extends SubsystemBase {
               backRight.getPositon(),
               frontRight.getPositon()
             },
-            new Pose2d());
+            new Pose2d(4, 4, new Rotation2d()));
 
     // Register the Field2d object as a sendable
     SendableBuilderImpl builder = new SendableBuilderImpl();
@@ -245,6 +247,7 @@ public class Swerve extends SubsystemBase {
   // Drive chassis-oriented (optional flag for closed loop velocity control)
   public void drive(ChassisSpeeds speeds, boolean closedLoopDrive) {
     speeds = limiter.calculate(speeds);
+    speeds = correctSkew(speeds);
     var targetStates = kSwerve.kinematics.toSwerveModuleStates(speeds);
     SwerveDriveKinematics.desaturateWheelSpeeds(targetStates, kSwerve.kModule.maxWheelSpeed);
 
@@ -325,14 +328,16 @@ public class Swerve extends SubsystemBase {
   // Update pose estimator and log data
   @Override
   public void periodic() {
-    simNavXYaw.set(
-        simNavXYaw.get() + chassisVelocity.omegaRadiansPerSecond * -360 / (2 * Math.PI) * 0.02);
+    if (RobotBase.isSimulation())
+      simNavXYaw.set(
+          simNavXYaw.get() + chassisVelocity.omegaRadiansPerSecond * -360 / (2 * Math.PI) * 0.02);
     poseEstimator.update(getGyroRaw(), getPositions());
     poseEstimator.addVisionMeasurement(getPose(), getGyroYawRate());
     log();
   }
 
   // ---------- Helpers ----------
+
   private ChassisSpeeds joystickToChassis(
       double xTranslation, double yTranslation, double zRotation, boolean boost) {
 
@@ -353,14 +358,24 @@ public class Swerve extends SubsystemBase {
     translationVelocity = translationVelocity.times(kSwerve.maxTransSpeed);
 
     // Contrain velocities to boost gain
-    if (!boost) {
-      translationVelocity = translationVelocity.times(kSwerve.Teleop.translationGain);
-      zRotation *= kSwerve.maxAngSpeed * kSwerve.Teleop.rotationGain;
-    }
+    if (!boost) translationVelocity = translationVelocity.times(kSwerve.Teleop.translationGain);
+    zRotation *= kSwerve.maxAngSpeed * kSwerve.Teleop.rotationGain;
 
     // Construct chassis speeds and return
     return new ChassisSpeeds(
         translationVelocity.get(0, 0), translationVelocity.get(1, 0), zRotation);
+  }
+
+  // Use the first order kinematics pose exponential to correct for skew on the chassis
+  private ChassisSpeeds correctSkew(ChassisSpeeds input) {
+    var next_pose =
+        new Pose2d(
+            input.vxMetersPerSecond * 0.02,
+            input.vyMetersPerSecond * 0.02,
+            Rotation2d.fromRadians(input.omegaRadiansPerSecond * 0.02));
+    Twist2d diff = new Pose2d().log(next_pose);
+
+    return new ChassisSpeeds(diff.dx / 0.02, diff.dy / 0.02, diff.dtheta / 0.02);
   }
 
   // Log data to network tables

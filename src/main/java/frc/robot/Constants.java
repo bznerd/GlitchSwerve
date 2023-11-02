@@ -15,8 +15,8 @@ public class Constants {
 
   // Operator interface constants
   public static class kOI {
-    public static double translationDeadzone = 0.05;
-    public static double rotationDeadzone = 0.05;
+    public static double translationDeadzone = 0.08;
+    public static double rotationDeadzone = 0.08;
   }
 
   // Sim Modes
@@ -34,7 +34,7 @@ public class Constants {
 
     // Speed & accel limits (m/s, rad/s, m/s^2 & rad/s^2)
     public static double maxTransSpeed = 5;
-    public static double maxAngSpeed = 2 * Math.PI;
+    public static double maxAngSpeed = 3 * Math.PI;
 
     public static double maxTransAccel = 1.15 * 9.81;
     public static double maxAngAccel = 2;
@@ -70,31 +70,31 @@ public class Constants {
 
     // Controller PID values for x/y translation, and z rotation
     public static class Auton {
-      public static final double xP = 0;
+      public static final double xP = 0.1;
       public static final double xD = 0;
 
-      public static final double yP = 0;
+      public static final double yP = 0.1;
       public static final double yD = 0;
 
-      public static final double zP = 3;
+      public static final double zP = 0.5;
       public static final double zD = 0;
 
-      public static final double maxAccel = 4;
-      public static final double maxVel = 3.5;
+      public static final double maxAccel = 1;
+      public static final double maxVel = 1;
     }
 
     public static class kModule {
       // The MAXSwerve module can be configured with one of three pinion gears: 12T, 13T, or 14T.
-      public static final int drivePinionTeeth = 14;
+      public static final int drivePinionTeeth = 13;
       public static final boolean invertSteerEncoder = true;
 
       // Controls Constants
       public static class kDrive {
-        public static final double kP = 1;
+        public static final double kP = 0.1;
         public static final double kD = 0;
-        public static final double kS = 0.1;
-        public static final double kV = 3;
-        public static final double kA = 0;
+        public static final double kS = 0.04642;
+        public static final double kV = 2.6757;
+        public static final double kA = 0.11358;
         public static final double minOutput = -1;
         public static final double maxOutput = 1;
       }

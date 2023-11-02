@@ -46,17 +46,21 @@ public class Robot extends TimedRobot {
                   driverController.getHID()::getLeftBumper)
               .until(() -> Math.abs(driverController.getRightX()) > 0.2);
         };
-
+    /*
     driverController.povUp().onTrue(headingCommand.apply(new Rotation2d()));
     driverController.povRight().onTrue(headingCommand.apply(Rotation2d.fromDegrees(-90)));
     driverController.povDown().onTrue(headingCommand.apply(Rotation2d.fromDegrees(180)));
     driverController.povLeft().onTrue(headingCommand.apply(Rotation2d.fromDegrees(90)));
-
+    */
     driverController.rightStick().onTrue(swerve.zeroGyroCommand());
     driverController.start().toggleOnTrue(swerve.xSwerveCommand());
     driverController
         .a()
-        .onTrue(new ProxyCommand(() -> swerve.driveToPoint(new Pose2d(8, 4, new Rotation2d()))));
+        .onTrue(
+            new ProxyCommand(
+                () ->
+                    swerve.driveToPoint(
+                        new Pose2d(4, 4, Rotation2d.fromDegrees(0)), new Rotation2d())));
   }
 
   @Override
@@ -104,9 +108,9 @@ public class Robot extends TimedRobot {
 
   @Override
   public void autonomousInit() {
-    autoCommand =
-        swerve.driveToPoint(new Pose2d(3, 0, new Rotation2d()), Rotation2d.fromDegrees(90));
-    autoCommand.schedule();
+    // autoCommand =
+    //    swerve.driveToPoint(new Pose2d(3, 0, new Rotation2d()), Rotation2d.fromDegrees(90));
+    // autoCommand.schedule();
   }
 
   @Override
