@@ -36,12 +36,12 @@ public class Constants {
     public static double maxTransSpeed = 5;
     public static double maxAngSpeed = 3 * Math.PI;
 
-    public static double maxTransAccel = 1.15 * 9.81;
+    public static double maxTransAccel = 0.2 * 9.81;
     public static double maxAngAccel = 2;
 
     // Operator interface constants
     public static class Teleop {
-      public static double translationGain = 0.5;
+      public static double translationGain = 0.7;
       public static double rotationGain = 0.5;
 
       public static boolean closedLoop = false;
@@ -76,11 +76,11 @@ public class Constants {
       public static final double yP = 0.1;
       public static final double yD = 0;
 
-      public static final double zP = 0.5;
+      public static final double zP = 5;
       public static final double zD = 0;
 
-      public static final double maxAccel = 1;
-      public static final double maxVel = 1;
+      public static final double maxAccel = 1.5;
+      public static final double maxVel = 1.5;
     }
 
     public static class kModule {

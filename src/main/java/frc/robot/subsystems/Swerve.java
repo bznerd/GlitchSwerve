@@ -38,6 +38,7 @@ import frc.robot.utilities.MAXSwerve;
 import java.util.HashMap;
 import java.util.function.BooleanSupplier;
 import java.util.function.DoubleSupplier;
+import java.util.function.Supplier;
 
 public class Swerve extends SubsystemBase {
   // NT Objects
@@ -164,7 +165,7 @@ public class Swerve extends SubsystemBase {
   public Command semiAutoDriveCommand(
       DoubleSupplier xTranslation,
       DoubleSupplier yTranslation,
-      Rotation2d heading,
+      Supplier<Rotation2d> heading,
       BooleanSupplier boost) {
     return this.run(
         () -> {
@@ -172,7 +173,8 @@ public class Swerve extends SubsystemBase {
               joystickToChassis(
                   xTranslation.getAsDouble(), yTranslation.getAsDouble(), 0, boost.getAsBoolean());
           speeds.omegaRadiansPerSecond =
-              zController.calculate(getPose().getRotation().getRadians(), heading.getRadians());
+              zController.calculate(
+                  getPose().getRotation().getRadians(), heading.get().getRadians());
           driveFO(speeds, false);
         });
   }
@@ -415,5 +417,6 @@ public class Swerve extends SubsystemBase {
         });
 
     field2d.setRobotPose(getPose());
+    autonRobot.setPose(new Pose2d(8, 4, Rotation2d.fromDegrees(90)));
   }
 }
