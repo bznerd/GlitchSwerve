@@ -39,7 +39,7 @@ public class Robot extends TimedRobot {
         .povCenter()
         .onFalse(
             swerve
-                .semiAutoDriveCommand(
+                .teleopLockHeadingCommand(
                     () -> -driverController.getLeftY(),
                     () -> -driverController.getLeftX(),
                     () -> Rotation2d.fromDegrees(driverController.getHID().getPOV()).unaryMinus(),
@@ -50,7 +50,7 @@ public class Robot extends TimedRobot {
         .a()
         .onTrue(
             swerve
-                .semiAutoDriveCommand(
+                .teleopTrackHeadingCommand(
                     () -> -driverController.getLeftY(),
                     () -> -driverController.getLeftX(),
                     () ->

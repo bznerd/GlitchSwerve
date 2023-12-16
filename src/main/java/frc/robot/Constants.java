@@ -37,12 +37,12 @@ public class Constants {
     public static double maxAngSpeed = 3 * Math.PI;
 
     public static double maxTransAccel = 0.2 * 9.81;
-    public static double maxAngAccel = 2;
+    public static double maxAngAccel = 8;
 
     // Operator interface constants
     public static class Teleop {
       public static double translationGain = 0.7;
-      public static double rotationGain = 0.5;
+      public static double rotationGain = 0.7;
 
       public static boolean closedLoop = false;
     }
@@ -92,9 +92,9 @@ public class Constants {
       public static class kDrive {
         public static final double kP = 0.1;
         public static final double kD = 0;
-        public static final double kS = 0.04642;
-        public static final double kV = 2.6757;
-        public static final double kA = 0.11358;
+        public static final double kS = 0.068841;
+        public static final double kV = 2.4568;
+        public static final double kA = 0.22524;
         public static final double minOutput = -1;
         public static final double maxOutput = 1;
       }

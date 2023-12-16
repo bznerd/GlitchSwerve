@@ -10,6 +10,7 @@ import com.pathplanner.lib.commands.PPSwerveControllerCommand;
 import edu.wpi.first.hal.SimDouble;
 import edu.wpi.first.math.VecBuilder;
 import edu.wpi.first.math.controller.PIDController;
+import edu.wpi.first.math.controller.ProfiledPIDController;
 import edu.wpi.first.math.estimator.SwerveDrivePoseEstimator;
 import edu.wpi.first.math.geometry.Pose2d;
 import edu.wpi.first.math.geometry.Rotation2d;
@@ -18,6 +19,7 @@ import edu.wpi.first.math.kinematics.ChassisSpeeds;
 import edu.wpi.first.math.kinematics.SwerveDriveKinematics;
 import edu.wpi.first.math.kinematics.SwerveModulePosition;
 import edu.wpi.first.math.kinematics.SwerveModuleState;
+import edu.wpi.first.math.trajectory.TrapezoidProfile.Constraints;
 import edu.wpi.first.math.util.Units;
 import edu.wpi.first.networktables.DoubleArrayPublisher;
 import edu.wpi.first.networktables.DoublePublisher;
@@ -34,6 +36,7 @@ import edu.wpi.first.wpilibj2.command.SubsystemBase;
 import frc.robot.Constants.kOI;
 import frc.robot.Constants.kSwerve;
 import frc.robot.utilities.ChassisLimiter;
+import frc.robot.utilities.DeferredCommand;
 import frc.robot.utilities.MAXSwerve;
 import java.util.HashMap;
 import java.util.function.BooleanSupplier;
@@ -111,6 +114,7 @@ public class Swerve extends SubsystemBase {
   private final SimDouble simNavXYaw = simNavX.getDouble("Yaw");
 
   public Swerve() {
+    // Setup controls objects
     limiter = new ChassisLimiter(kSwerve.maxTransAccel, kSwerve.maxAngAccel);
     zController.enableContinuousInput(0, 2 * Math.PI);
     poseEstimator =
@@ -153,31 +157,58 @@ public class Swerve extends SubsystemBase {
       BooleanSupplier boost) {
     return this.run(
         () ->
-            driveFO(
-                joystickToChassis(
-                    xTranslation.getAsDouble(),
-                    yTranslation.getAsDouble(),
-                    zRotation.getAsDouble(),
-                    boost.getAsBoolean()),
+            drive(
+                fieldToRobotSpeeds(
+                    joystickToChassis(
+                        xTranslation.getAsDouble(),
+                        yTranslation.getAsDouble(),
+                        zRotation.getAsDouble(),
+                        boost.getAsBoolean())),
                 kSwerve.Teleop.closedLoop));
   }
 
-  public Command semiAutoDriveCommand(
+  // Wrapper over track heading command to only track the first supplied angle (useful for supplying
+  // the angle from joystick POV instead of binding each direction)
+  public Command teleopLockHeadingCommand(
       DoubleSupplier xTranslation,
       DoubleSupplier yTranslation,
       Supplier<Rotation2d> heading,
       BooleanSupplier boost) {
-    return this.run(
-        () -> {
-          var speeds =
-              joystickToChassis(
-                  xTranslation.getAsDouble(), yTranslation.getAsDouble(), 0, boost.getAsBoolean());
-          speeds.omegaRadiansPerSecond =
-              zController.calculate(
-                  getPose().getRotation().getRadians(), heading.get().getRadians());
-          driveFO(speeds, false);
-        });
+    return new DeferredCommand(
+        () -> lockHeadingCommandSupplier(xTranslation, yTranslation, heading, boost), this);
   }
+
+  public Command teleopTrackHeadingCommand(
+      DoubleSupplier xTranslation,
+      DoubleSupplier yTranslation,
+      Supplier<Rotation2d> heading,
+      BooleanSupplier boost) {
+
+    ProfiledPIDController headingController =
+        new ProfiledPIDController(
+            kSwerve.Auton.zP,
+            0,
+            kSwerve.Auton.zD,
+            new Constraints(kSwerve.maxAngSpeed, kSwerve.maxAngAccel));
+    headingController.enableContinuousInput(0, 2 * Math.PI);
+
+    return this.runOnce(() -> headingController.reset(getGyro().getRadians(), getGyroYawRate()))
+        .andThen(
+            this.run(
+                () -> {
+                  var speeds =
+                      joystickToChassis(
+                          xTranslation.getAsDouble(),
+                          yTranslation.getAsDouble(),
+                          0,
+                          boost.getAsBoolean());
+                  speeds.omegaRadiansPerSecond =
+                      headingController.calculate(
+                          getPose().getRotation().getRadians(), heading.get().getRadians());
+                  drive(fieldToRobotSpeeds(speeds), false);
+                }));
+  }
+
   // Put wheels into x configuration
   public Command xSwerveCommand() {
     return this.startEnd(this::xSwerve, () -> {});
@@ -240,20 +271,25 @@ public class Swerve extends SubsystemBase {
 
   // ---------- Public interface methods ----------
 
-  // Drive field-oriented (optional flag for closed loop velocity control)
-  public void driveFO(ChassisSpeeds fieldRelativeSpeeds, boolean closedLoopDrive) {
-    var relativeSpeeds = ChassisSpeeds.fromFieldRelativeSpeeds(fieldRelativeSpeeds, getGyro());
-    drive(relativeSpeeds, closedLoopDrive);
+  public Command lockHeadingCommandSupplier(
+      DoubleSupplier xTranslation,
+      DoubleSupplier yTranslation,
+      Supplier<Rotation2d> headingSupplier,
+      BooleanSupplier boost) {
+    var heading = headingSupplier.get();
+    return teleopTrackHeadingCommand(xTranslation, yTranslation, () -> heading, boost);
   }
 
   // Drive chassis-oriented (optional flag for closed loop velocity control)
   public void drive(ChassisSpeeds speeds, boolean closedLoopDrive) {
+    // TODO log requested speeds
     speeds = limiter.calculate(speeds);
     speeds = correctSkew(speeds);
     var targetStates = kSwerve.kinematics.toSwerveModuleStates(speeds);
     SwerveDriveKinematics.desaturateWheelSpeeds(targetStates, kSwerve.kModule.maxWheelSpeed);
 
-    chassisVelocity = ChassisSpeeds.fromFieldRelativeSpeeds(speeds, getGyro().unaryMinus());
+    // TODO log commanded speeds
+    chassisVelocity = speeds;
     setStates(targetStates, closedLoopDrive);
   }
 
@@ -263,6 +299,14 @@ public class Swerve extends SubsystemBase {
     backLeft.setX();
     backRight.setX();
     frontRight.setX();
+  }
+
+  // Set the drive motors to brake or coast
+  public void setBrakeMode(boolean on) {
+    frontLeft.setBrakeMode(on);
+    backLeft.setBrakeMode(on);
+    backRight.setBrakeMode(on);
+    frontRight.setBrakeMode(on);
   }
 
   // Retrieve the pose estimation pose
@@ -378,6 +422,11 @@ public class Swerve extends SubsystemBase {
     Twist2d diff = new Pose2d().log(next_pose);
 
     return new ChassisSpeeds(diff.dx / 0.02, diff.dy / 0.02, diff.dtheta / 0.02);
+  }
+
+  // Save a few characters calling the full thing
+  private ChassisSpeeds fieldToRobotSpeeds(ChassisSpeeds speeds) {
+    return ChassisSpeeds.fromFieldRelativeSpeeds(speeds, getGyro());
   }
 
   // Log data to network tables
