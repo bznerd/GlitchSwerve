@@ -4,6 +4,9 @@
 
 package frc.robot;
 
+import com.pathplanner.lib.util.HolonomicPathFollowerConfig;
+import com.pathplanner.lib.util.PIDConstants;
+import com.pathplanner.lib.util.ReplanningConfig;
 import com.revrobotics.CANSparkMax.IdleMode;
 import edu.wpi.first.math.geometry.Translation2d;
 import edu.wpi.first.math.kinematics.SwerveDriveKinematics;
@@ -70,17 +73,21 @@ public class Constants {
 
     // Controller PID values for x/y translation, and z rotation
     public static class Auton {
-      public static final double xP = 0.1;
-      public static final double xD = 0;
-
-      public static final double yP = 0.1;
-      public static final double yD = 0;
-
-      public static final double zP = 5;
-      public static final double zD = 0;
+      public static final double angP = 5;
+      public static final double angD = 0;
 
       public static final double maxAccel = 1.5;
       public static final double maxVel = 1.5;
+      public static final double maxAngAccel = 0.75 * kSwerve.maxAngAccel;
+      public static final double maxAngVel = 0.75 * kSwerve.maxAngSpeed;
+
+      public static final HolonomicPathFollowerConfig pathFollowConfig =
+          new HolonomicPathFollowerConfig(
+              new PIDConstants(0.1, 0.0, 0), // Translation PID constants
+              new PIDConstants(angP, 0.0, angD), // Rotation PID constants
+              4.5, // Max module speed, in m/s
+              0.4, // Drive base radius in meters. Distance from robot center to furthest module.
+              new ReplanningConfig(false, false));
     }
 
     public static class kModule {

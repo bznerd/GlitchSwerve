@@ -1,15 +1,14 @@
 package frc.robot.subsystems;
 
 import com.kauailabs.navx.frc.AHRS;
-import com.pathplanner.lib.PathConstraints;
-import com.pathplanner.lib.PathPlanner;
-import com.pathplanner.lib.PathPlannerTrajectory;
-import com.pathplanner.lib.PathPoint;
+import com.pathplanner.lib.commands.FollowPathHolonomic;
 import com.pathplanner.lib.commands.FollowPathWithEvents;
-import com.pathplanner.lib.commands.PPSwerveControllerCommand;
+import com.pathplanner.lib.path.GoalEndState;
+import com.pathplanner.lib.path.PathConstraints;
+import com.pathplanner.lib.path.PathPlannerPath;
+import com.pathplanner.lib.util.PathPlannerLogging;
 import edu.wpi.first.hal.SimDouble;
 import edu.wpi.first.math.VecBuilder;
-import edu.wpi.first.math.controller.PIDController;
 import edu.wpi.first.math.controller.ProfiledPIDController;
 import edu.wpi.first.math.estimator.SwerveDrivePoseEstimator;
 import edu.wpi.first.math.geometry.Pose2d;
@@ -37,9 +36,9 @@ import edu.wpi.first.wpilibj2.command.PrintCommand;
 import edu.wpi.first.wpilibj2.command.SubsystemBase;
 import frc.robot.Constants.kOI;
 import frc.robot.Constants.kSwerve;
+import frc.robot.Constants.kSwerve.Auton;
 import frc.robot.utilities.ChassisLimiter;
 import frc.robot.utilities.MAXSwerve;
-import java.util.HashMap;
 import java.util.function.BooleanSupplier;
 import java.util.function.DoubleSupplier;
 
@@ -84,12 +83,6 @@ public class Swerve extends SubsystemBase {
   // Controls objects
   private final SwerveDrivePoseEstimator poseEstimator;
   private final ChassisLimiter limiter;
-  private final PIDController xController =
-      new PIDController(kSwerve.Auton.xP, 0, kSwerve.Auton.xD);
-  private final PIDController yController =
-      new PIDController(kSwerve.Auton.yP, 0, kSwerve.Auton.yD);
-  private final PIDController zController =
-      new PIDController(kSwerve.Auton.zP, 0, kSwerve.Auton.zD);
   private Rotation2d gyroOffset = new Rotation2d();
   private ChassisSpeeds chassisVelocity = new ChassisSpeeds();
 
@@ -103,9 +96,6 @@ public class Swerve extends SubsystemBase {
       ntTable.getDoubleArrayTopic("Commanded Chassis Velocity").publish();
   private final DoubleArrayPublisher measuredVelPub =
       ntTable.getDoubleArrayTopic("Actual Chassis Velocity").publish();
-  private final DoublePublisher autonXError = poseTable.getDoubleTopic("Path x Error").publish();
-  private final DoublePublisher autonYError = poseTable.getDoubleTopic("Path y Error").publish();
-  private final DoublePublisher autonZError = poseTable.getDoubleTopic("Path z Error").publish();
   private final DoubleArrayPublisher swerveStatesPub =
       ntTable.getDoubleArrayTopic("Swerve Module States").publish();
 
@@ -116,7 +106,6 @@ public class Swerve extends SubsystemBase {
   public Swerve() {
     // Setup controls objects
     limiter = new ChassisLimiter(kSwerve.maxTransAccel, kSwerve.maxAngAccel);
-    zController.enableContinuousInput(0, 2 * Math.PI);
     poseEstimator =
         new SwerveDrivePoseEstimator(
             kSwerve.kinematics,
@@ -136,15 +125,8 @@ public class Swerve extends SubsystemBase {
     builder.startListeners();
 
     // Bind Path Follower command logging methods
-    PPSwerveControllerCommand.setLoggingCallbacks(
-        autonPath::setTrajectory,
-        autonRobot::setPose,
-        null,
-        (translation, rotation) -> {
-          autonXError.set(translation.getX());
-          autonYError.set(translation.getY());
-          autonZError.set(rotation.getRadians());
-        });
+    PathPlannerLogging.setLogActivePathCallback(autonPath::setPoses);
+    PathPlannerLogging.setLogTargetPoseCallback(autonRobot::setPose);
   }
 
   // ---------- Drive Commands ----------
@@ -176,9 +158,9 @@ public class Swerve extends SubsystemBase {
 
     ProfiledPIDController headingController =
         new ProfiledPIDController(
-            kSwerve.Auton.zP,
+            kSwerve.Auton.angP,
             0,
-            kSwerve.Auton.zD,
+            kSwerve.Auton.angD,
             new Constraints(kSwerve.maxAngSpeed, kSwerve.maxAngAccel));
     headingController.enableContinuousInput(0, 2 * Math.PI);
 
@@ -210,9 +192,9 @@ public class Swerve extends SubsystemBase {
 
     ProfiledPIDController headingController =
         new ProfiledPIDController(
-            kSwerve.Auton.zP,
+            kSwerve.Auton.angP,
             0,
-            kSwerve.Auton.zD,
+            kSwerve.Auton.angD,
             new Constraints(kSwerve.maxAngSpeed, kSwerve.maxAngAccel));
     headingController.enableContinuousInput(0, 2 * Math.PI);
 
@@ -242,23 +224,19 @@ public class Swerve extends SubsystemBase {
   // ---------- Autonomous Commands ----------
 
   // Follow a PathPlanner path
-  public Command followPathCommand(PathPlannerTrajectory path, boolean transformForAlliance) {
-    return new PPSwerveControllerCommand(
+  public Command followPathCommand(PathPlannerPath path) {
+    return new FollowPathHolonomic(
         path,
         this::getPose,
-        this.xController,
-        this.yController,
-        this.zController,
-        (speeds) -> this.drive(speeds, true),
-        transformForAlliance,
+        this::getChassisSpeeds,
+        (speeds) -> drive(speeds, true),
+        Auton.pathFollowConfig,
         this);
   }
 
   // Follow a PathPlanner path and trigger commands passed in the event map at event markers
-  public Command followPathWithEventsCommand(
-      PathPlannerTrajectory path, HashMap<String, Command> eventMap, boolean transformForAlliance) {
-    return new FollowPathWithEvents(
-        followPathCommand(path, transformForAlliance), path.getMarkers(), eventMap);
+  public Command followPathWithEventsCommand(PathPlannerPath path) {
+    return new FollowPathWithEvents(followPathCommand(path), path, this::getPose);
   }
 
   // Generate an on-the-fly path to reach a certain pose
@@ -268,20 +246,17 @@ public class Swerve extends SubsystemBase {
 
   // Generate an on-the-fly path to reach a certain pose with a given holonomic rotation
   public Command driveToPoint(Pose2d goalPose, Rotation2d holonomicRotation) {
-    PathPlannerTrajectory path =
-        PathPlanner.generatePath(
-            new PathConstraints(kSwerve.Auton.maxVel, kSwerve.Auton.maxAccel),
-            new PathPoint(
-                getPose().getTranslation(),
-                new Rotation2d(
-                    chassisVelocity.vxMetersPerSecond, chassisVelocity.vyMetersPerSecond),
-                getPose().getRotation(),
-                Math.sqrt(
-                    Math.pow(chassisVelocity.vxMetersPerSecond, 2)
-                        + Math.pow(chassisVelocity.vyMetersPerSecond, 2))),
-            new PathPoint(goalPose.getTranslation(), goalPose.getRotation(), holonomicRotation));
-
-    return followPathCommand(path, false);
+    return this.defer(
+        () ->
+            followPathCommand(
+                new PathPlannerPath(
+                    PathPlannerPath.bezierFromPoses(getPose(), goalPose),
+                    new PathConstraints(
+                        kSwerve.Auton.maxVel,
+                        kSwerve.Auton.maxAccel,
+                        kSwerve.Auton.maxAngVel,
+                        kSwerve.maxAngAccel),
+                    new GoalEndState(0.0, holonomicRotation))));
   }
 
   // ---------- Other commands ----------
@@ -337,6 +312,11 @@ public class Swerve extends SubsystemBase {
     return poseEstimator.getEstimatedPosition();
   }
 
+  // Retrieve measured ChassisSpeeds
+  public ChassisSpeeds getChassisSpeeds() {
+    return kSwerve.kinematics.toChassisSpeeds(getStates());
+  }
+
   // Set an initial pose for the pose estimator
   public void setPose(Pose2d pose) {
     poseEstimator.resetPosition(getGyroRaw(), getPositions(), pose);
@@ -352,6 +332,11 @@ public class Swerve extends SubsystemBase {
     gyroOffset = getGyroRaw().minus(getPose().getRotation());
   }
 
+  // Get gyro yaw rate (radians/s CCW +)
+  public double getGyroYawRate() {
+    return Units.degreesToRadians(-navX.getRate());
+  }
+
   // ---------- Private hardware interface methods ----------
 
   // Get direct gyro reading as Rotation2d
@@ -362,11 +347,6 @@ public class Swerve extends SubsystemBase {
   // Get software offset gyro angle
   private Rotation2d getGyro() {
     return getGyroRaw().minus(gyroOffset);
-  }
-
-  // Get gyro yaw rate (radians/s CCW +)
-  private double getGyroYawRate() {
-    return Units.degreesToRadians(-navX.getRate());
   }
 
   // Retrieve the positions (angle and distance traveled) for each swerve module

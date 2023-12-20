@@ -14,7 +14,6 @@ import edu.wpi.first.wpilibj.Filesystem;
 import edu.wpi.first.wpilibj.TimedRobot;
 import edu.wpi.first.wpilibj2.command.Command;
 import edu.wpi.first.wpilibj2.command.CommandScheduler;
-import edu.wpi.first.wpilibj2.command.ProxyCommand;
 import edu.wpi.first.wpilibj2.command.button.CommandXboxController;
 import frc.robot.Constants.SimMode;
 import frc.robot.subsystems.Swerve;
@@ -66,11 +65,7 @@ public class Robot extends TimedRobot {
     driverController.start().toggleOnTrue(swerve.xSwerveCommand());
     driverController
         .y()
-        .onTrue(
-            new ProxyCommand(
-                () ->
-                    swerve.driveToPoint(
-                        new Pose2d(4, 4, Rotation2d.fromDegrees(0)), new Rotation2d())));
+        .onTrue(swerve.driveToPoint(new Pose2d(4, 4, Rotation2d.fromDegrees(0)), new Rotation2d()));
   }
 
   @Override
