@@ -13,13 +13,11 @@ import edu.wpi.first.wpilibj.DriverStation;
 import edu.wpi.first.wpilibj.Filesystem;
 import edu.wpi.first.wpilibj.TimedRobot;
 import edu.wpi.first.wpilibj2.command.Command;
-import edu.wpi.first.wpilibj2.command.Command.InterruptionBehavior;
 import edu.wpi.first.wpilibj2.command.CommandScheduler;
 import edu.wpi.first.wpilibj2.command.ProxyCommand;
 import edu.wpi.first.wpilibj2.command.button.CommandXboxController;
 import frc.robot.Constants.SimMode;
 import frc.robot.subsystems.Swerve;
-import frc.robot.utilities.DeferredCommand;
 import java.io.BufferedReader;
 import java.io.File;
 import java.io.FileReader;
@@ -38,20 +36,20 @@ public class Robot extends TimedRobot {
             () -> -driverController.getRightX(),
             driverController.getHID()::getLeftBumper));
 
-    driverController
-        .povCenter()
-        .onFalse(
-            new DeferredCommand(
-                () ->
-                    swerve
-                        .teleopLockHeadingCommand(
-                            () -> -driverController.getLeftY(),
-                            () -> -driverController.getLeftX(),
-                            Rotation2d.fromDegrees(driverController.getHID().getPOV()).unaryMinus(),
-                            driverController.getHID()::getLeftBumper)
-                        .withInterruptBehavior(InterruptionBehavior.kCancelSelf)
-                        .until(() -> Math.abs(driverController.getRightX()) > 0.2),
-                swerve));
+    // Bind a heading lock command for the four cardinal directions on the d-hat
+    int[] povDirections = new int[] {0, 90, 180, 270};
+    for (int direction : povDirections) {
+      driverController
+          .pov(direction)
+          .onTrue(
+              swerve
+                  .teleopLockHeadingCommand(
+                      () -> -driverController.getLeftY(),
+                      () -> -driverController.getLeftX(),
+                      Rotation2d.fromDegrees(-direction),
+                      driverController.getHID()::getLeftBumper)
+                  .until(() -> Math.abs(driverController.getRightX()) > 0.2));
+    }
 
     driverController
         .a()
@@ -62,7 +60,6 @@ public class Robot extends TimedRobot {
                     () -> -driverController.getLeftX(),
                     new Translation2d(8, 4),
                     driverController.getHID()::getLeftBumper)
-                .withInterruptBehavior(InterruptionBehavior.kCancelSelf)
                 .until(() -> Math.abs(driverController.getRightX()) > 0.2));
 
     driverController.rightStick().onTrue(swerve.zeroGyroCommand());
@@ -102,6 +99,7 @@ public class Robot extends TimedRobot {
     }
 
     DriverStation.startDataLog(DataLogManager.getLog());
+    if (Robot.isSimulation()) DataLogManager.log("Simmode is " + Constants.simMode);
     configureBindings();
   }
 
