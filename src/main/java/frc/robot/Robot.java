@@ -6,6 +6,7 @@ package frc.robot;
 
 import edu.wpi.first.math.geometry.Pose2d;
 import edu.wpi.first.math.geometry.Rotation2d;
+import edu.wpi.first.math.geometry.Translation2d;
 import edu.wpi.first.networktables.NetworkTableInstance;
 import edu.wpi.first.wpilibj.DataLogManager;
 import edu.wpi.first.wpilibj.DriverStation;
@@ -35,31 +36,29 @@ public class Robot extends TimedRobot {
             () -> -driverController.getRightX(),
             driverController.getHID()::getLeftBumper));
 
-    driverController
-        .povCenter()
-        .onFalse(
-            swerve
-                .teleopLockHeadingCommand(
-                    () -> -driverController.getLeftY(),
-                    () -> -driverController.getLeftX(),
-                    () -> Rotation2d.fromDegrees(driverController.getHID().getPOV()).unaryMinus(),
-                    driverController.getHID()::getLeftBumper)
-                .until(() -> Math.abs(driverController.getRightX()) > 0.2));
+    // Bind a heading lock command for the four cardinal directions on the d-hat
+    int[] povDirections = new int[] {0, 90, 180, 270};
+    for (int direction : povDirections) {
+      driverController
+          .pov(direction)
+          .onTrue(
+              swerve
+                  .teleopLockHeadingCommand(
+                      () -> -driverController.getLeftY(),
+                      () -> -driverController.getLeftX(),
+                      Rotation2d.fromDegrees(-direction),
+                      driverController.getHID()::getLeftBumper)
+                  .until(() -> Math.abs(driverController.getRightX()) > 0.2));
+    }
 
     driverController
         .a()
         .onTrue(
             swerve
-                .teleopTrackHeadingCommand(
+                .teleopFocusPointCommand(
                     () -> -driverController.getLeftY(),
                     () -> -driverController.getLeftX(),
-                    () ->
-                        swerve
-                            .getPose()
-                            .relativeTo(new Pose2d(8, 4, new Rotation2d()))
-                            .getTranslation()
-                            .getAngle()
-                            .plus(Rotation2d.fromDegrees(180)),
+                    new Translation2d(8, 4),
                     driverController.getHID()::getLeftBumper)
                 .until(() -> Math.abs(driverController.getRightX()) > 0.2));
 
@@ -100,6 +99,7 @@ public class Robot extends TimedRobot {
     }
 
     DriverStation.startDataLog(DataLogManager.getLog());
+    if (Robot.isSimulation()) DataLogManager.log("Simmode is " + Constants.simMode);
     configureBindings();
   }
 

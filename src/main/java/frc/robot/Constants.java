@@ -21,7 +21,7 @@ public class Constants {
 
   // Sim Modes
   public enum SimMode {
-    HARDWARE,
+    HARDWARE_IN_LOOP,
     DESKTOP_VISION,
     DESKTOP
   }
@@ -37,7 +37,7 @@ public class Constants {
     public static double maxAngSpeed = 3 * Math.PI;
 
     public static double maxTransAccel = 0.2 * 9.81;
-    public static double maxAngAccel = 8;
+    public static double maxAngAccel = 12;
 
     // Operator interface constants
     public static class Teleop {
