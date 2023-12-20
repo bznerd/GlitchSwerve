@@ -14,7 +14,6 @@ import edu.wpi.first.math.estimator.SwerveDrivePoseEstimator;
 import edu.wpi.first.math.geometry.Pose2d;
 import edu.wpi.first.math.geometry.Rotation2d;
 import edu.wpi.first.math.geometry.Translation2d;
-import edu.wpi.first.math.geometry.Twist2d;
 import edu.wpi.first.math.kinematics.ChassisSpeeds;
 import edu.wpi.first.math.kinematics.SwerveDriveKinematics;
 import edu.wpi.first.math.kinematics.SwerveModulePosition;
@@ -282,7 +281,7 @@ public class Swerve extends SubsystemBase {
   public void drive(ChassisSpeeds speeds, boolean closedLoopDrive) {
     // TODO log requested speeds
     speeds = limiter.calculate(speeds);
-    speeds = correctSkew(speeds);
+    speeds = ChassisSpeeds.discretize(speeds, 0.02);
     var targetStates = kSwerve.kinematics.toSwerveModuleStates(speeds);
     SwerveDriveKinematics.desaturateWheelSpeeds(targetStates, kSwerve.kModule.maxWheelSpeed);
 
@@ -413,18 +412,6 @@ public class Swerve extends SubsystemBase {
     // Construct chassis speeds and return
     return new ChassisSpeeds(
         translationVelocity.get(0, 0), translationVelocity.get(1, 0), zRotation);
-  }
-
-  // Use the first order kinematics pose exponential to correct for skew on the chassis
-  private ChassisSpeeds correctSkew(ChassisSpeeds input) {
-    var next_pose =
-        new Pose2d(
-            input.vxMetersPerSecond * 0.02,
-            input.vyMetersPerSecond * 0.02,
-            Rotation2d.fromRadians(input.omegaRadiansPerSecond * 0.02));
-    Twist2d diff = new Pose2d().log(next_pose);
-
-    return new ChassisSpeeds(diff.dx / 0.02, diff.dy / 0.02, diff.dtheta / 0.02);
   }
 
   // Save a few characters calling the full thing
