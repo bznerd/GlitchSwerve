@@ -14,6 +14,7 @@ import edu.wpi.first.math.controller.ProfiledPIDController;
 import edu.wpi.first.math.estimator.SwerveDrivePoseEstimator;
 import edu.wpi.first.math.geometry.Pose2d;
 import edu.wpi.first.math.geometry.Rotation2d;
+import edu.wpi.first.math.geometry.Translation2d;
 import edu.wpi.first.math.geometry.Twist2d;
 import edu.wpi.first.math.kinematics.ChassisSpeeds;
 import edu.wpi.first.math.kinematics.SwerveDriveKinematics;
@@ -32,16 +33,15 @@ import edu.wpi.first.wpilibj.smartdashboard.Field2d;
 import edu.wpi.first.wpilibj.smartdashboard.FieldObject2d;
 import edu.wpi.first.wpilibj.smartdashboard.SendableBuilderImpl;
 import edu.wpi.first.wpilibj2.command.Command;
+import edu.wpi.first.wpilibj2.command.PrintCommand;
 import edu.wpi.first.wpilibj2.command.SubsystemBase;
 import frc.robot.Constants.kOI;
 import frc.robot.Constants.kSwerve;
 import frc.robot.utilities.ChassisLimiter;
-import frc.robot.utilities.DeferredCommand;
 import frc.robot.utilities.MAXSwerve;
 import java.util.HashMap;
 import java.util.function.BooleanSupplier;
 import java.util.function.DoubleSupplier;
-import java.util.function.Supplier;
 
 public class Swerve extends SubsystemBase {
   // NT Objects
@@ -147,7 +147,7 @@ public class Swerve extends SubsystemBase {
         });
   }
 
-  // ---------- Commands ----------
+  // ---------- Drive Commands ----------
 
   // Telop field oriented driver commands
   public Command teleopDriveCommand(
@@ -167,21 +167,45 @@ public class Swerve extends SubsystemBase {
                 kSwerve.Teleop.closedLoop));
   }
 
-  // Wrapper over track heading command to only track the first supplied angle (useful for supplying
-  // the angle from joystick POV instead of binding each direction)
+  // Returns a command that locks onto the provided heading while translation is driver controlled
   public Command teleopLockHeadingCommand(
       DoubleSupplier xTranslation,
       DoubleSupplier yTranslation,
-      Supplier<Rotation2d> heading,
+      Rotation2d heading,
       BooleanSupplier boost) {
-    return new DeferredCommand(
-        () -> lockHeadingCommandSupplier(xTranslation, yTranslation, heading, boost), this);
+
+    ProfiledPIDController headingController =
+        new ProfiledPIDController(
+            kSwerve.Auton.zP,
+            0,
+            kSwerve.Auton.zD,
+            new Constraints(kSwerve.maxAngSpeed, kSwerve.maxAngAccel));
+    headingController.enableContinuousInput(0, 2 * Math.PI);
+
+    return this.runOnce(() -> headingController.reset(getGyro().getRadians(), getGyroYawRate()))
+        .andThen(new PrintCommand("Started lock command at angle " + heading.getRadians()))
+        .andThen(
+            this.run(
+                () -> {
+                  var speeds =
+                      joystickToChassis(
+                          xTranslation.getAsDouble(),
+                          yTranslation.getAsDouble(),
+                          0,
+                          boost.getAsBoolean());
+                  speeds.omegaRadiansPerSecond =
+                      headingController.calculate(
+                          getPose().getRotation().getRadians(), heading.getRadians());
+                  drive(fieldToRobotSpeeds(speeds), false);
+                }));
   }
 
-  public Command teleopTrackHeadingCommand(
+  // Returns a command that controls the heading to face a given point on the field while tranlation
+  // is driver controlled
+  public Command teleopFocusPointCommand(
       DoubleSupplier xTranslation,
       DoubleSupplier yTranslation,
-      Supplier<Rotation2d> heading,
+      Translation2d point,
       BooleanSupplier boost) {
 
     ProfiledPIDController headingController =
@@ -204,30 +228,21 @@ public class Swerve extends SubsystemBase {
                           boost.getAsBoolean());
                   speeds.omegaRadiansPerSecond =
                       headingController.calculate(
-                          getPose().getRotation().getRadians(), heading.get().getRadians());
+                          getPose().getRotation().getRadians(),
+                          getPose()
+                              .getTranslation()
+                              .minus(point)
+                              .getAngle()
+                              .plus(Rotation2d.fromDegrees(180))
+                              .getRadians());
                   drive(fieldToRobotSpeeds(speeds), false);
                 }));
   }
 
-  // Put wheels into x configuration
-  public Command xSwerveCommand() {
-    return this.startEnd(this::xSwerve, () -> {});
-  }
-
-  // Zero the gyro
-  public Command zeroGyroCommand() {
-    return this.runOnce(this::zeroGyro);
-  }
-
-  // Reset the gyro with pose estimation (don't use without vision)
-  public Command resetGyroCommand() {
-    return this.runOnce(this::matchGyroToPose);
-  }
-
-  // ---------- Autonomous ----------
+  // ---------- Autonomous Commands ----------
 
   // Follow a PathPlanner path
-  public Command followPath(PathPlannerTrajectory path, boolean transformForAlliance) {
+  public Command followPathCommand(PathPlannerTrajectory path, boolean transformForAlliance) {
     return new PPSwerveControllerCommand(
         path,
         this::getPose,
@@ -240,14 +255,14 @@ public class Swerve extends SubsystemBase {
   }
 
   // Follow a PathPlanner path and trigger commands passed in the event map at event markers
-  public Command followPathWithEvents(
+  public Command followPathWithEventsCommand(
       PathPlannerTrajectory path, HashMap<String, Command> eventMap, boolean transformForAlliance) {
     return new FollowPathWithEvents(
-        followPath(path, transformForAlliance), path.getMarkers(), eventMap);
+        followPathCommand(path, transformForAlliance), path.getMarkers(), eventMap);
   }
 
   // Generate an on-the-fly path to reach a certain pose
-  public Command driveToPoint(Pose2d goalPose) {
+  public Command driveToPointCommand(Pose2d goalPose) {
     return driveToPoint(goalPose, goalPose.getRotation());
   }
 
@@ -266,19 +281,27 @@ public class Swerve extends SubsystemBase {
                         + Math.pow(chassisVelocity.vyMetersPerSecond, 2))),
             new PathPoint(goalPose.getTranslation(), goalPose.getRotation(), holonomicRotation));
 
-    return followPath(path, false);
+    return followPathCommand(path, false);
+  }
+
+  // ---------- Other commands ----------
+
+  // Put wheels into x configuration
+  public Command xSwerveCommand() {
+    return this.startEnd(this::xSwerve, () -> {});
+  }
+
+  // Zero the gyro
+  public Command zeroGyroCommand() {
+    return this.runOnce(this::zeroGyro);
+  }
+
+  // Reset the gyro with pose estimation (don't use without vision)
+  public Command resetGyroCommand() {
+    return this.runOnce(this::matchGyroToPose);
   }
 
   // ---------- Public interface methods ----------
-
-  public Command lockHeadingCommandSupplier(
-      DoubleSupplier xTranslation,
-      DoubleSupplier yTranslation,
-      Supplier<Rotation2d> headingSupplier,
-      BooleanSupplier boost) {
-    var heading = headingSupplier.get();
-    return teleopTrackHeadingCommand(xTranslation, yTranslation, () -> heading, boost);
-  }
 
   // Drive chassis-oriented (optional flag for closed loop velocity control)
   public void drive(ChassisSpeeds speeds, boolean closedLoopDrive) {

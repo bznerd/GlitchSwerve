@@ -6,17 +6,20 @@ package frc.robot;
 
 import edu.wpi.first.math.geometry.Pose2d;
 import edu.wpi.first.math.geometry.Rotation2d;
+import edu.wpi.first.math.geometry.Translation2d;
 import edu.wpi.first.networktables.NetworkTableInstance;
 import edu.wpi.first.wpilibj.DataLogManager;
 import edu.wpi.first.wpilibj.DriverStation;
 import edu.wpi.first.wpilibj.Filesystem;
 import edu.wpi.first.wpilibj.TimedRobot;
 import edu.wpi.first.wpilibj2.command.Command;
+import edu.wpi.first.wpilibj2.command.Command.InterruptionBehavior;
 import edu.wpi.first.wpilibj2.command.CommandScheduler;
 import edu.wpi.first.wpilibj2.command.ProxyCommand;
 import edu.wpi.first.wpilibj2.command.button.CommandXboxController;
 import frc.robot.Constants.SimMode;
 import frc.robot.subsystems.Swerve;
+import frc.robot.utilities.DeferredCommand;
 import java.io.BufferedReader;
 import java.io.File;
 import java.io.FileReader;
@@ -38,29 +41,28 @@ public class Robot extends TimedRobot {
     driverController
         .povCenter()
         .onFalse(
-            swerve
-                .teleopLockHeadingCommand(
-                    () -> -driverController.getLeftY(),
-                    () -> -driverController.getLeftX(),
-                    () -> Rotation2d.fromDegrees(driverController.getHID().getPOV()).unaryMinus(),
-                    driverController.getHID()::getLeftBumper)
-                .until(() -> Math.abs(driverController.getRightX()) > 0.2));
+            new DeferredCommand(
+                () ->
+                    swerve
+                        .teleopLockHeadingCommand(
+                            () -> -driverController.getLeftY(),
+                            () -> -driverController.getLeftX(),
+                            Rotation2d.fromDegrees(driverController.getHID().getPOV()).unaryMinus(),
+                            driverController.getHID()::getLeftBumper)
+                        .withInterruptBehavior(InterruptionBehavior.kCancelSelf)
+                        .until(() -> Math.abs(driverController.getRightX()) > 0.2),
+                swerve));
 
     driverController
         .a()
         .onTrue(
             swerve
-                .teleopTrackHeadingCommand(
+                .teleopFocusPointCommand(
                     () -> -driverController.getLeftY(),
                     () -> -driverController.getLeftX(),
-                    () ->
-                        swerve
-                            .getPose()
-                            .relativeTo(new Pose2d(8, 4, new Rotation2d()))
-                            .getTranslation()
-                            .getAngle()
-                            .plus(Rotation2d.fromDegrees(180)),
+                    new Translation2d(8, 4),
                     driverController.getHID()::getLeftBumper)
+                .withInterruptBehavior(InterruptionBehavior.kCancelSelf)
                 .until(() -> Math.abs(driverController.getRightX()) > 0.2));
 
     driverController.rightStick().onTrue(swerve.zeroGyroCommand());
