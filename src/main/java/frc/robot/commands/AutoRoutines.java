@@ -1,18 +1,19 @@
 package frc.robot.commands;
+
+import com.pathplanner.lib.path.PathPlannerPath;
+import edu.wpi.first.wpilibj.smartdashboard.SendableChooser;
+import edu.wpi.first.wpilibj2.command.Command;
+import edu.wpi.first.wpilibj2.command.Commands;
 import frc.robot.subsystems.Swerve;
 import java.util.LinkedHashMap;
 import java.util.Map;
 
-import com.pathplanner.lib.path.PathPlannerPath;
-
-import edu.wpi.first.wpilibj.smartdashboard.SendableChooser;
-import edu.wpi.first.wpilibj2.command.Command;
-import edu.wpi.first.wpilibj2.command.Commands;
-
 public class AutoRoutines {
   @SuppressWarnings("unused")
   private final Swerve swerve;
-  private final LinkedHashMap<String, PathPlannerPath> paths = new LinkedHashMap<String, PathPlannerPath>();
+
+  private final LinkedHashMap<String, PathPlannerPath> paths =
+      new LinkedHashMap<String, PathPlannerPath>();
   private final LinkedHashMap<String, Command> routines = new LinkedHashMap<String, Command>();
   private final SendableChooser<Command> selector = new SendableChooser<Command>();
 
@@ -29,7 +30,7 @@ public class AutoRoutines {
      paths.put("<Name>", PathPlannerPath.fromPathFile("<path file name>"));
      ex:
      paths.put("Crazy auto", swerve.followPathWithEventsCommand(paths.get("crazy_auto")));
-  */ 
+  */
   private void loadPaths() {
     paths.put("path", PathPlannerPath.fromPathFile("path"));
   }
@@ -43,7 +44,7 @@ public class AutoRoutines {
      routines.put("<Name>", <Command to run>);
      ex:
      routines.put("Crazy auto", swerve.followPathWithEventsCommand(paths.get("Crazy auto")));
-  */ 
+  */
   private void loadRoutines() {
     routines.put("No Auto", Commands.waitSeconds(0));
   }
