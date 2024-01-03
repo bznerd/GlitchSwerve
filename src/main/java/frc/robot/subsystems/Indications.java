@@ -3,7 +3,7 @@ package frc.robot.subsystems;
 import edu.wpi.first.wpilibj.AddressableLEDBuffer;
 import edu.wpi.first.wpilibj.util.Color;
 import edu.wpi.first.wpilibj2.command.SubsystemBase;
-import frc.robot.subsystems.Indications.SystemState.SwerveState;
+import frc.robot.subsystems.Swerve.SwerveState;
 import frc.robot.utilities.LEDAnimations;
 import frc.robot.utilities.LEDSubStrip;
 import java.util.ArrayList;
@@ -11,48 +11,14 @@ import java.util.Collections;
 import java.util.List;
 import java.util.function.Consumer;
 import java.util.function.Predicate;
+import java.util.function.Supplier;
 
 public class Indications extends SubsystemBase {
   private final AddressableLEDBuffer ledBuffer = new AddressableLEDBuffer(64);
   private final LEDSubStrip ledStrip = new LEDSubStrip(ledBuffer, 0, 63);
   private final List<Rule> rules = new ArrayList<Rule>();
   private final LEDAnimations animations = new LEDAnimations();
-
-  public class SystemState {
-    public class SwerveState {
-      public enum Mode {
-        DRIVE,
-        HEADING_LOCK,
-        POINT_OF_INTEREST,
-        AUTO_DRIVE,
-        PARK,
-        IDLE
-      }
-
-      public Mode mode;
-      public boolean boosting;
-
-      public SwerveState() {
-        mode = Mode.IDLE;
-        boosting = false;
-      }
-
-      public SwerveState(Mode mode, boolean boosting) {
-        this.mode = mode;
-        this.boosting = boosting;
-      }
-    }
-
-    public SwerveState swerveState;
-
-    public SystemState() {
-      swerveState = new SwerveState();
-    }
-
-    public SystemState(SwerveState swerveState) {
-      this.swerveState = swerveState;
-    }
-  }
+  private final Supplier<SwerveState> swerveStateSupplier;
 
   private class Rule {
     public final int priority;
@@ -74,7 +40,16 @@ public class Indications extends SubsystemBase {
     }
   }
 
-  public Indications() {
+  private class SystemState {
+    public SwerveState swerveState;
+
+    public SystemState(SwerveState swerveState) {
+      this.swerveState = swerveState;
+    }
+  }
+
+  public Indications(Supplier<SwerveState> swerveStateSupplier) {
+    this.swerveStateSupplier = swerveStateSupplier;
     rules.add(
         new Rule(
             100,
@@ -91,18 +66,30 @@ public class Indications extends SubsystemBase {
             state -> state.swerveState.mode == SwerveState.Mode.PARK,
             strip -> animations.monotone(strip, Color.kRed)));
 
-    Collections.sort(rules, (rule1, rule2) -> rule2.priority - rule1.priority);
+    sortRules(rules);
   }
 
   @Override
   public void periodic() {
-    var exampleState = new SystemState();
-    for (Rule rule : rules) {
-      if (rule.evaluate(exampleState)) {
-        rule.apply(ledStrip);
-        break;
+    // Update data
+    SystemState state = new SystemState(swerveStateSupplier.get());
+    animations.update();
+
+    // Apply rules
+    evaluateRules(rules, ledStrip, state);
+  }
+
+  // Evaluate the rules in rank order and apply the first valid rule to the strip
+  private void evaluateRules(List<Rule> rules, LEDSubStrip strip, SystemState state) {
+    for (var rule : rules) {
+      if (rule.evaluate(state)) {
+        rule.apply(strip);
       }
     }
-    animations.update();
+  }
+
+  // Sort the rules in descending rank
+  private void sortRules(List<Rule> rules) {
+    Collections.sort(rules, (rule1, rule2) -> rule2.priority - rule1.priority);
   }
 }
