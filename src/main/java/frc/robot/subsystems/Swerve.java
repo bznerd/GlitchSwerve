@@ -2,7 +2,6 @@ package frc.robot.subsystems;
 
 import com.kauailabs.navx.frc.AHRS;
 import com.pathplanner.lib.commands.FollowPathHolonomic;
-import com.pathplanner.lib.commands.FollowPathWithEvents;
 import com.pathplanner.lib.path.GoalEndState;
 import com.pathplanner.lib.path.PathConstraints;
 import com.pathplanner.lib.path.PathPlannerPath;
@@ -25,6 +24,8 @@ import edu.wpi.first.networktables.DoublePublisher;
 import edu.wpi.first.networktables.NetworkTable;
 import edu.wpi.first.networktables.NetworkTableInstance;
 import edu.wpi.first.util.sendable.SendableRegistry;
+import edu.wpi.first.wpilibj.DriverStation;
+import edu.wpi.first.wpilibj.DriverStation.Alliance;
 import edu.wpi.first.wpilibj.RobotBase;
 import edu.wpi.first.wpilibj.simulation.SimDeviceSim;
 import edu.wpi.first.wpilibj.smartdashboard.Field2d;
@@ -258,7 +259,7 @@ public class Swerve extends SubsystemBase {
   // ---------- Autonomous Commands ----------
 
   // Follow a PathPlanner path
-  public Command followPathCommand(PathPlannerPath path) {
+  public Command followPathCommand(PathPlannerPath path, boolean useAlliance) {
     return this.runOnce(() -> swerveState.mode = SwerveState.Mode.AUTO_DRIVE)
         .andThen(
             new FollowPathHolonomic(
@@ -267,6 +268,12 @@ public class Swerve extends SubsystemBase {
                 this::getChassisSpeeds,
                 (speeds) -> drive(speeds, true),
                 Auton.pathFollowConfig,
+                () -> {
+                  if (useAlliance && DriverStation.getAlliance().isPresent()) {
+                    if (DriverStation.getAlliance().get() == Alliance.Red) return true;
+                  }
+                  return false;
+                },
                 this))
         .finallyDo(() -> swerveState.mode = SwerveState.Mode.IDLE)
         .withName("followPathCommand");
@@ -275,7 +282,7 @@ public class Swerve extends SubsystemBase {
   // Follow a PathPlanner path and trigger commands passed in the event map at event markers
   public Command followPathWithEventsCommand(PathPlannerPath path) {
     return this.runOnce(() -> swerveState.mode = SwerveState.Mode.AUTO_DRIVE)
-        .andThen(new FollowPathWithEvents(followPathCommand(path), path, this::getPose))
+        .andThen(followPathCommand(path, false))
         .finallyDo(() -> swerveState.mode = SwerveState.Mode.IDLE)
         .withName("followPathWithEventsCommand");
   }
@@ -299,7 +306,8 @@ public class Swerve extends SubsystemBase {
                                 kSwerve.Auton.maxAccel,
                                 kSwerve.Auton.maxAngVel,
                                 kSwerve.maxAngAccel),
-                            new GoalEndState(0.0, holonomicRotation)))))
+                            new GoalEndState(0.0, holonomicRotation)),
+                        false)))
         .finallyDo(() -> swerveState.mode = SwerveState.Mode.IDLE)
         .withName("driveToPoint");
   }
