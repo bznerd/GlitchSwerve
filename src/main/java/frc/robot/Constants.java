@@ -39,7 +39,7 @@ public class Constants {
     public static double maxTransSpeed = 5;
     public static double maxAngSpeed = 3 * Math.PI;
 
-    public static double maxTransAccel = 0.2 * 9.81;
+    public static double maxTransAccel = 0.9 * 9.81;
     public static double maxAngAccel = 12;
 
     // Operator interface constants
@@ -92,7 +92,7 @@ public class Constants {
 
     public static class kModule {
       // The MAXSwerve module can be configured with one of three pinion gears: 12T, 13T, or 14T.
-      public static final int drivePinionTeeth = 13;
+      public static final int drivePinionTeeth = 14;
       public static final boolean invertSteerEncoder = true;
 
       // Controls Constants
