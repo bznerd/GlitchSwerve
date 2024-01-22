@@ -12,7 +12,7 @@ public class ChassisLimiter {
 
   private final double translationLimit;
   private final double rotationLimit;
-  private final double prevTime;
+  private double prevTime;
 
   public ChassisLimiter(double translationLimit, double rotationLimit) {
     this.translationLimit = translationLimit;
@@ -33,6 +33,7 @@ public class ChassisLimiter {
   public ChassisSpeeds calculate(ChassisSpeeds nextSpeeds) {
     double currentTime = WPIUtilJNI.now() * 1e-6;
     double elapsedTime = currentTime - prevTime;
+    prevTime = currentTime;
 
     Vector<N2> velocityDiff =
         new Vector<N2>(
