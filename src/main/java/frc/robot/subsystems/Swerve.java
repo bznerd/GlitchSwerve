@@ -118,6 +118,7 @@ public class Swerve extends SubsystemBase {
   private final FieldObject2d autonPath = field2d.getObject("Autonomous Path");
   private final DoublePublisher rawGyroPub = ntTable.getDoubleTopic("Raw Gyro").publish();
   private final DoublePublisher offsetGyroPub = ntTable.getDoubleTopic("Offset Gyro").publish();
+  private final DoublePublisher gyroRate = ntTable.getDoubleTopic("Gyro rate").publish();
   private final DoubleArrayPublisher chassisVelPub =
       ntTable.getDoubleArrayTopic("Commanded Chassis Velocity").publish();
   private final DoubleArrayPublisher measuredVelPub =
@@ -390,7 +391,7 @@ public class Swerve extends SubsystemBase {
 
   // Get gyro yaw rate (radians/s CCW +)
   public double getGyroYawRate() {
-    return Units.degreesToRadians(-navX.getRate());
+    return Units.degreesToRadians(navX.getRawGyroZ());
   }
 
   public SwerveState getSwerveState() {
@@ -441,7 +442,6 @@ public class Swerve extends SubsystemBase {
       simNavXYaw.set(
           simNavXYaw.get() + chassisVelocity.omegaRadiansPerSecond * -360 / (2 * Math.PI) * 0.02);
     poseEstimator.update(getGyroRaw(), getPositions());
-    poseEstimator.addVisionMeasurement(getPose(), getGyroYawRate());
     log();
   }
 
@@ -489,6 +489,7 @@ public class Swerve extends SubsystemBase {
 
     rawGyroPub.set(getGyroRaw().getRadians());
     offsetGyroPub.set(getGyro().getRadians());
+    gyroRate.set(getGyroYawRate());
     // Send the chassis velocity as a double array (vel_x, vel_y, omega_z)
     chassisVelPub.set(
         new double[] {
@@ -496,12 +497,12 @@ public class Swerve extends SubsystemBase {
           chassisVelocity.vyMetersPerSecond,
           chassisVelocity.omegaRadiansPerSecond
         });
-    var measuredVel =
-        ChassisSpeeds.fromFieldRelativeSpeeds(
-            kSwerve.kinematics.toChassisSpeeds(getStates()), getGyro().unaryMinus());
+    var measuredVel = kSwerve.kinematics.toChassisSpeeds(getStates());
     measuredVelPub.set(
         new double[] {
-          measuredVel.vxMetersPerSecond, measuredVel.vyMetersPerSecond, getGyroYawRate()
+          measuredVel.vxMetersPerSecond,
+          measuredVel.vyMetersPerSecond,
+          measuredVel.omegaRadiansPerSecond
         });
 
     swerveStatesPub.set(
