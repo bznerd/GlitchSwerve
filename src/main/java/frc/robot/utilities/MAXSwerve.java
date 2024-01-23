@@ -169,9 +169,25 @@ public class MAXSwerve {
     if (RobotBase.isSimulation()) simDrivePosition += targetState.speedMetersPerSecond * 0.02;
   }
 
+  // rawvolts output for SysId
+  public void setRawDriveVoltage(double volts) {
+    driveNEO.setVoltage(volts);
+  }
+
+  // gets the volts that are being applied
+  public double getRawDriveNeoVoltage() {
+    return driveNEO.getAppliedOutput() * driveNEO.getBusVoltage();
+  }
+
   // Set the module to the chassis X configuraiton
   public void setX() {
     setTargetState(new SwerveModuleState(0, new Rotation2d(Math.PI / 4 + chassisOffset)), false);
+  }
+
+  // Sets motors all to look like an O from birdseye view, used for angular SysId
+  public void setO() {
+    setTargetState(
+        new SwerveModuleState(0, new Rotation2d(3 * Math.PI / 4 + chassisOffset)), false);
   }
 
   // Reset the drive encoder to zero (reset for odometry)

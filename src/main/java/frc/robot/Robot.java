@@ -16,7 +16,9 @@ import edu.wpi.first.wpilibj.shuffleboard.Shuffleboard;
 import edu.wpi.first.wpilibj2.command.Command;
 import edu.wpi.first.wpilibj2.command.CommandScheduler;
 import edu.wpi.first.wpilibj2.command.button.CommandXboxController;
+import edu.wpi.first.wpilibj2.command.sysid.SysIdRoutine.Direction;
 import frc.robot.Constants.SimMode;
+import frc.robot.Constants.kSwerve;
 import frc.robot.commands.AutoRoutines;
 import frc.robot.subsystems.Swerve;
 import java.io.BufferedReader;
@@ -74,6 +76,14 @@ public class Robot extends TimedRobot {
 
     driverController.rightStick().onTrue(swerve.zeroGyroCommand());
     driverController.start().toggleOnTrue(swerve.xSwerveCommand());
+
+    // SysId Linear
+    driverController
+        .x()
+        .whileTrue(swerve.sysIdQuasistatic(Direction.kForward, kSwerve.sysIdType.LINEAR));
+    driverController
+        .y()
+        .whileTrue(swerve.sysIdQuasistatic(Direction.kReverse, kSwerve.sysIdType.LINEAR));
   }
 
   @Override

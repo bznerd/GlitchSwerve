@@ -167,5 +167,11 @@ public class Constants {
       public static int frontRightDrive = 7;
       public static int frontRightSteer = 8;
     }
+
+    // SysId
+    public static enum sysIdType {
+      LINEAR,
+      ANGULAR
+    }
   }
 }

@@ -1,5 +1,10 @@
 package frc.robot.subsystems;
 
+import static edu.wpi.first.units.MutableMeasure.mutable;
+import static edu.wpi.first.units.Units.Meters;
+import static edu.wpi.first.units.Units.MetersPerSecond;
+import static edu.wpi.first.units.Units.Volts;
+
 import com.kauailabs.navx.frc.AHRS;
 import com.pathplanner.lib.commands.FollowPathHolonomic;
 import com.pathplanner.lib.path.GoalEndState;
@@ -23,6 +28,10 @@ import edu.wpi.first.networktables.DoubleArrayPublisher;
 import edu.wpi.first.networktables.DoublePublisher;
 import edu.wpi.first.networktables.NetworkTable;
 import edu.wpi.first.networktables.NetworkTableInstance;
+import edu.wpi.first.units.Distance;
+import edu.wpi.first.units.MutableMeasure;
+import edu.wpi.first.units.Velocity;
+import edu.wpi.first.units.Voltage;
 import edu.wpi.first.util.sendable.SendableRegistry;
 import edu.wpi.first.wpilibj.DriverStation;
 import edu.wpi.first.wpilibj.DriverStation.Alliance;
@@ -34,6 +43,7 @@ import edu.wpi.first.wpilibj.smartdashboard.SendableBuilderImpl;
 import edu.wpi.first.wpilibj2.command.Command;
 import edu.wpi.first.wpilibj2.command.Commands;
 import edu.wpi.first.wpilibj2.command.SubsystemBase;
+import edu.wpi.first.wpilibj2.command.sysid.SysIdRoutine;
 import frc.robot.Constants.kOI;
 import frc.robot.Constants.kSwerve;
 import frc.robot.Constants.kSwerve.Auton;
@@ -128,6 +138,112 @@ public class Swerve extends SubsystemBase {
   // Simulation
   private final SimDeviceSim simNavX = new SimDeviceSim("navX-Sensor", 0);
   private final SimDouble simNavXYaw = simNavX.getDouble("Yaw");
+
+  // SysId Objects
+  // Mutable holder for unit-safe voltage values, persisted to avoid reallocation.
+  private final MutableMeasure<Voltage> m_appliedVoltage = mutable(Volts.of(0));
+  // Mutable holder for unit-safe linear distance values, persisted to avoid reallocation.
+  private final MutableMeasure<Distance> m_distance = mutable(Meters.of(0));
+  // Mutable holder for unit-safe linear velocity values, persisted to avoid reallocation.
+  private final MutableMeasure<Velocity<Distance>> m_velocity = mutable(MetersPerSecond.of(0));
+
+  SysIdRoutine linearRoutine =
+      new SysIdRoutine(
+          new SysIdRoutine.Config(),
+          new SysIdRoutine.Mechanism(
+              (volts) -> {
+                // Set all the wheels to one direction
+                frontLeft.setTargetState(new SwerveModuleState(0, new Rotation2d(0)), false);
+                backLeft.setTargetState(new SwerveModuleState(0, new Rotation2d(0)), false);
+                frontRight.setTargetState(new SwerveModuleState(0, new Rotation2d(0)), false);
+                backRight.setTargetState(new SwerveModuleState(0, new Rotation2d(0)), false);
+                // apply the voltage
+                frontLeft.setRawDriveVoltage(volts.magnitude());
+                backLeft.setRawDriveVoltage(volts.magnitude());
+                frontRight.setRawDriveVoltage(-volts.magnitude());
+                backRight.setRawDriveVoltage(-volts.magnitude());
+              },
+              (log) -> {
+                log.motor("frontLeft")
+                    .voltage(m_appliedVoltage.mut_replace(frontLeft.getRawDriveNeoVoltage(), Volts))
+                    .linearPosition(
+                        m_distance.mut_replace(frontLeft.getPositon().distanceMeters, Meters))
+                    .linearVelocity(
+                        m_velocity.mut_replace(
+                            frontLeft.getState().speedMetersPerSecond, MetersPerSecond));
+                log.motor("backLeft")
+                    .voltage(m_appliedVoltage.mut_replace(backLeft.getRawDriveNeoVoltage(), Volts))
+                    .linearPosition(
+                        m_distance.mut_replace(backLeft.getPositon().distanceMeters, Meters))
+                    .linearVelocity(
+                        m_velocity.mut_replace(
+                            backLeft.getState().speedMetersPerSecond, MetersPerSecond));
+                log.motor("frontRight")
+                    .voltage(
+                        m_appliedVoltage.mut_replace(frontRight.getRawDriveNeoVoltage(), Volts))
+                    .linearPosition(
+                        m_distance.mut_replace(frontRight.getPositon().distanceMeters, Meters))
+                    .linearVelocity(
+                        m_velocity.mut_replace(
+                            frontRight.getState().speedMetersPerSecond, MetersPerSecond));
+                log.motor("backRight")
+                    .voltage(m_appliedVoltage.mut_replace(backRight.getRawDriveNeoVoltage(), Volts))
+                    .linearPosition(
+                        m_distance.mut_replace(backRight.getPositon().distanceMeters, Meters))
+                    .linearVelocity(
+                        m_velocity.mut_replace(
+                            backRight.getState().speedMetersPerSecond, MetersPerSecond));
+              },
+              this));
+
+  SysIdRoutine angularRoutine =
+      new SysIdRoutine(
+          new SysIdRoutine.Config(),
+          new SysIdRoutine.Mechanism(
+              (volts) -> {
+                // Set all the wheels to one direction
+                frontLeft.setO();
+                backLeft.setO();
+                frontRight.setO();
+                backRight.setO();
+                // apply the voltage
+                frontLeft.setRawDriveVoltage(volts.magnitude());
+                backLeft.setRawDriveVoltage(volts.magnitude());
+                frontRight.setRawDriveVoltage(-volts.magnitude());
+                backRight.setRawDriveVoltage(-volts.magnitude());
+              },
+              (log) -> {
+                log.motor("frontLeft")
+                    .voltage(m_appliedVoltage.mut_replace(frontLeft.getRawDriveNeoVoltage(), Volts))
+                    .linearPosition(
+                        m_distance.mut_replace(frontLeft.getPositon().distanceMeters, Meters))
+                    .linearVelocity(
+                        m_velocity.mut_replace(
+                            frontLeft.getState().speedMetersPerSecond, MetersPerSecond));
+                log.motor("backLeft")
+                    .voltage(m_appliedVoltage.mut_replace(backLeft.getRawDriveNeoVoltage(), Volts))
+                    .linearPosition(
+                        m_distance.mut_replace(backLeft.getPositon().distanceMeters, Meters))
+                    .linearVelocity(
+                        m_velocity.mut_replace(
+                            backLeft.getState().speedMetersPerSecond, MetersPerSecond));
+                log.motor("frontRight")
+                    .voltage(
+                        m_appliedVoltage.mut_replace(frontRight.getRawDriveNeoVoltage(), Volts))
+                    .linearPosition(
+                        m_distance.mut_replace(frontRight.getPositon().distanceMeters, Meters))
+                    .linearVelocity(
+                        m_velocity.mut_replace(
+                            frontRight.getState().speedMetersPerSecond, MetersPerSecond));
+                log.motor("backRight")
+                    .voltage(m_appliedVoltage.mut_replace(backRight.getRawDriveNeoVoltage(), Volts))
+                    .linearPosition(
+                        m_distance.mut_replace(backRight.getPositon().distanceMeters, Meters))
+                    .linearVelocity(
+                        m_velocity.mut_replace(
+                            backRight.getState().speedMetersPerSecond, MetersPerSecond));
+              },
+              this));
 
   public Swerve() {
     // Setup controls objects
@@ -330,6 +446,23 @@ public class Swerve extends SubsystemBase {
   // Reset the gyro with pose estimation (don't use without vision)
   public Command resetGyroCommand() {
     return Commands.runOnce(this::matchGyroToPose).withName("resetGyroCommand");
+  }
+
+  // ---------- SysId Commands ----------
+  public Command sysIdQuasistatic(SysIdRoutine.Direction direction, kSwerve.sysIdType type) {
+    if (type == kSwerve.sysIdType.ANGULAR) {
+      return angularRoutine.quasistatic(direction);
+    } else {
+      return linearRoutine.quasistatic(direction);
+    }
+  }
+
+  public Command sysIdDynamic(SysIdRoutine.Direction direction, kSwerve.sysIdType type) {
+    if (type == kSwerve.sysIdType.ANGULAR) {
+      return angularRoutine.dynamic(direction);
+    } else {
+      return linearRoutine.dynamic(direction);
+    }
   }
 
   // ---------- Public interface methods ----------
