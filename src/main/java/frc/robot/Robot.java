@@ -4,9 +4,6 @@
 
 package frc.robot;
 
-import edu.wpi.first.math.geometry.Pose2d;
-import edu.wpi.first.math.geometry.Rotation2d;
-import edu.wpi.first.math.geometry.Translation2d;
 import edu.wpi.first.networktables.NetworkTableInstance;
 import edu.wpi.first.wpilibj.DataLogManager;
 import edu.wpi.first.wpilibj.DriverStation;
@@ -41,38 +38,6 @@ public class Robot extends TimedRobot {
             () -> -driverController.getLeftX(),
             () -> -driverController.getRightX(),
             driverController.getHID()::getLeftBumper));
-
-    // Bind a heading lock command for the four cardinal directions on the d-hat
-    int[] povDirections = new int[] {0, 90, 180, 270};
-    for (int direction : povDirections) {
-      driverController
-          .pov(direction)
-          .onTrue(
-              swerve
-                  .teleopLockHeadingCommand(
-                      () -> -driverController.getLeftY(),
-                      () -> -driverController.getLeftX(),
-                      Rotation2d.fromDegrees(-direction),
-                      driverController.getHID()::getLeftBumper)
-                  .until(() -> Math.abs(driverController.getRightX()) > 0.2));
-    }
-
-    // Chassis Faces point of interest while driver controls translation
-    driverController
-        .a()
-        .onTrue(
-            swerve
-                .teleopFocusPointCommand(
-                    () -> -driverController.getLeftY(),
-                    () -> -driverController.getLeftX(),
-                    new Translation2d(8, 4),
-                    driverController.getHID()::getLeftBumper)
-                .until(() -> Math.abs(driverController.getRightX()) > 0.2));
-
-    // Automatically drive to a point on the field
-    driverController
-        .y()
-        .onTrue(swerve.driveToPoint(new Pose2d(4, 4, Rotation2d.fromDegrees(0)), new Rotation2d()));
 
     driverController.rightStick().onTrue(swerve.zeroGyroCommand());
     driverController.start().toggleOnTrue(swerve.xSwerveCommand());

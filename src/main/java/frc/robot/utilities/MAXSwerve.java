@@ -1,13 +1,13 @@
 package frc.robot.utilities;
 
 import com.revrobotics.AbsoluteEncoder;
+import com.revrobotics.CANSparkBase.ControlType;
+import com.revrobotics.CANSparkBase.IdleMode;
+import com.revrobotics.CANSparkLowLevel.MotorType;
 import com.revrobotics.CANSparkMax;
-import com.revrobotics.CANSparkMax.ControlType;
-import com.revrobotics.CANSparkMax.IdleMode;
-import com.revrobotics.CANSparkMaxLowLevel.MotorType;
 import com.revrobotics.RelativeEncoder;
-import com.revrobotics.SparkMaxAbsoluteEncoder.Type;
-import com.revrobotics.SparkMaxPIDController;
+import com.revrobotics.SparkAbsoluteEncoder;
+import com.revrobotics.SparkPIDController;
 import edu.wpi.first.math.controller.SimpleMotorFeedforward;
 import edu.wpi.first.math.geometry.Rotation2d;
 import edu.wpi.first.math.kinematics.SwerveModulePosition;
@@ -30,8 +30,8 @@ public class MAXSwerve {
   private final AbsoluteEncoder steerEncoder;
 
   // Controls
-  private final SparkMaxPIDController drivePID;
-  private final SparkMaxPIDController steerPID;
+  private final SparkPIDController drivePID;
+  private final SparkPIDController steerPID;
 
   private final SimpleMotorFeedforward driveFF;
 
@@ -54,7 +54,7 @@ public class MAXSwerve {
     steerNEO = new CANSparkMax(steerCANId, MotorType.kBrushless);
 
     driveEncoder = driveNEO.getEncoder();
-    steerEncoder = steerNEO.getAbsoluteEncoder(Type.kDutyCycle);
+    steerEncoder = steerNEO.getAbsoluteEncoder(SparkAbsoluteEncoder.Type.kDutyCycle);
 
     driveEncoder.setPositionConversionFactor(kModule.drivingEncoderPositionFactor);
     steerEncoder.setPositionConversionFactor(kModule.steeringEncoderPositionFactor);

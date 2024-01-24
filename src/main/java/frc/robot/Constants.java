@@ -7,7 +7,7 @@ package frc.robot;
 import com.pathplanner.lib.util.HolonomicPathFollowerConfig;
 import com.pathplanner.lib.util.PIDConstants;
 import com.pathplanner.lib.util.ReplanningConfig;
-import com.revrobotics.CANSparkMax.IdleMode;
+import com.revrobotics.CANSparkBase.IdleMode;
 import edu.wpi.first.math.geometry.Translation2d;
 import edu.wpi.first.math.kinematics.SwerveDriveKinematics;
 import edu.wpi.first.math.util.Units;
@@ -32,8 +32,8 @@ public class Constants {
   // Swerve subsystem constants (module constants included)
   public static class kSwerve {
     // Chassis dimensions from wheel center to center (meters)
-    public static double width = 0.5;
-    public static double length = 0.5;
+    public static double width = 0.525;
+    public static double length = 0.525;
 
     // Speed & accel limits (m/s, rad/s, m/s^2 & rad/s^2)
     public static double maxTransSpeed = 5;
