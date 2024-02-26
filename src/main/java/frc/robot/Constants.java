@@ -18,6 +18,7 @@ import edu.wpi.first.wpilibj.SPI.Port;
 
 public class Constants {
   public static SimMode simMode = SimMode.DESKTOP;
+  public static TestMode testMode = TestMode.SYSID;
   public static boolean logFileOnly = false;
   public static boolean logLazy = true;
   public static int configurationSetRetries = 5;
@@ -35,10 +36,10 @@ public class Constants {
     DESKTOP
   }
 
-  // SysId
-  public static enum sysIdType {
-    LINEAR,
-    ANGULAR
+  public enum TestMode {
+    NONE,
+    SYSID,
+    NO_BREAK_MODE
   }
 
   public static enum subsystems {

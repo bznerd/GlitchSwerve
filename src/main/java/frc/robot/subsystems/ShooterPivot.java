@@ -49,16 +49,6 @@ public class ShooterPivot extends SubsystemBase {
   private TrapezoidProfile.State goal = new TrapezoidProfile.State();
   private TrapezoidProfile.State setpoint = new TrapezoidProfile.State();
 
-  // SysId Objects
-  // Mutable holder for unit-safe voltage values, persisted to avoid reallocation.
-  private final MutableMeasure<Voltage> m_appliedVoltage = mutable(Volts.of(0));
-  // Mutable holder for unit-safe angular distance values, persisted to avoid reallocation.
-  private final MutableMeasure<Angle> m_angle = mutable(Radians.of(0));
-  // Mutable holder for unit-safe angular velocity values, persisted to avoid reallocation.
-  private final MutableMeasure<Velocity<Angle>> m_velocity = mutable(RadiansPerSecond.of(0));
-
-  private final SysIdRoutine angularRoutine;
-
   public ShooterPivot() {
     // Motor Initializations
     pivotMotor1 =
@@ -88,26 +78,6 @@ public class ShooterPivot extends SubsystemBase {
     pivotPID.setPositionPIDWrappingEnabled(false);
     pivotPID.setP(kPivot.kP);
     pivotPID.setD(kPivot.kD);
-
-    // SysId object
-    angularRoutine =
-        new SysIdRoutine(
-            new SysIdRoutine.Config(),
-            new SysIdRoutine.Mechanism(
-                (volts) -> {
-                  pivotMotor1.setVoltage(volts.magnitude());
-                },
-                (log) -> {
-                  pivotEncoder.setVelocityConversionFactor(Math.PI);
-                  log.motor("shooterPivotMotor")
-                      .voltage(m_appliedVoltage.mut_replace(pivotMotor1.getBusVoltage(), Volts))
-                      .angularPosition(
-                          m_angle.mut_replace(pivotEncoder.getPosition() * Math.PI, Radians))
-                      .angularVelocity(
-                          m_velocity.mut_replace(
-                              (pivotEncoder.getVelocity() * Math.PI), RadiansPerSecond));
-                },
-                this));
   }
 
   private TrapezoidProfile.State calculateSetpoint(double posRad) {
@@ -137,6 +107,27 @@ public class ShooterPivot extends SubsystemBase {
 
   // Get SysID Routine
   public SysIdRoutine getAngularRoutine() {
-    return angularRoutine;
+    // Mutable holder for unit-safe voltage values, persisted to avoid reallocation.
+    MutableMeasure<Voltage> appliedVoltage = mutable(Volts.of(0));
+    // Mutable holder for unit-safe angular distance values, persisted to avoid reallocation.
+    MutableMeasure<Angle> angle = mutable(Radians.of(0));
+    // Mutable holder for unit-safe angular velocity values, persisted to avoid reallocation.
+    MutableMeasure<Velocity<Angle>> velocity = mutable(RadiansPerSecond.of(0));
+    return new SysIdRoutine(
+        new SysIdRoutine.Config(),
+        new SysIdRoutine.Mechanism(
+            (volts) -> {
+              pivotMotor1.setVoltage(volts.magnitude());
+            },
+            (log) -> {
+              pivotEncoder.setVelocityConversionFactor(Math.PI);
+              log.motor("shooterPivotMotor")
+                  .voltage(appliedVoltage.mut_replace(pivotMotor1.getBusVoltage(), Volts))
+                  .angularPosition(angle.mut_replace(pivotEncoder.getPosition() * Math.PI, Radians))
+                  .angularVelocity(
+                      velocity.mut_replace(
+                          (pivotEncoder.getVelocity() * Math.PI), RadiansPerSecond));
+            },
+            this));
   }
 }

@@ -25,10 +25,12 @@ import edu.wpi.first.wpilibj2.command.Command;
 import edu.wpi.first.wpilibj2.command.SubsystemBase;
 import edu.wpi.first.wpilibj2.command.sysid.SysIdRoutine;
 import frc.robot.Constants.kIntake.kPivot;
+import frc.robot.commands.SysIdRoutines.SysIdType;
+import frc.robot.utilities.Characterizable;
 import frc.robot.utilities.SparkConfigurator.Sensors;
 import java.util.Set;
 
-public class IntakePivot extends SubsystemBase {
+public class IntakePivot extends SubsystemBase implements Characterizable {
 
   private final CANSparkMax pivotMotor;
   private final AbsoluteEncoder pivotEncoder;
@@ -36,22 +38,12 @@ public class IntakePivot extends SubsystemBase {
   private final ArmFeedforward pivotFF;
   private final SparkPIDController pivotPID;
 
-  private final SysIdRoutine angularRoutine;
-
   // Profile Stuff
   private final TrapezoidProfile.Constraints constraints =
       new Constraints(kPivot.kProfile.maxVel, kPivot.kProfile.maxAccel);
   private final TrapezoidProfile profile = new TrapezoidProfile(constraints);
   private TrapezoidProfile.State goal = new TrapezoidProfile.State();
   private TrapezoidProfile.State setpoint = new TrapezoidProfile.State();
-
-  // SysId Objects
-  // Mutable holder for unit-safe voltage values, persisted to avoid reallocation.
-  private final MutableMeasure<Voltage> m_appliedVoltage = mutable(Volts.of(0));
-  // Mutable holder for unit-safe angular distance values, persisted to avoid reallocation.
-  private final MutableMeasure<Angle> m_angle = mutable(Radians.of(0));
-  // Mutable holder for unit-safe angular velocity values, persisted to avoid reallocation.
-  private final MutableMeasure<Velocity<Angle>> m_velocity = mutable(RadiansPerSecond.of(0));
 
   public IntakePivot() {
     // Motor Configs
@@ -78,26 +70,6 @@ public class IntakePivot extends SubsystemBase {
 
     // Feedforward Configs
     pivotFF = new ArmFeedforward(kPivot.kS, kPivot.kG, kPivot.kV, kPivot.kA);
-
-    // Angular Routine Configs
-    angularRoutine =
-        new SysIdRoutine(
-            new SysIdRoutine.Config(),
-            new SysIdRoutine.Mechanism(
-                (volts) -> {
-                  pivotMotor.setVoltage(volts.magnitude());
-                },
-                (log) -> {
-                  pivotEncoder.setVelocityConversionFactor(Math.PI);
-                  log.motor("intakePivotMotor")
-                      .voltage(m_appliedVoltage.mut_replace(pivotMotor.getBusVoltage(), Volts))
-                      .angularPosition(
-                          m_angle.mut_replace(pivotEncoder.getPosition() * Math.PI, Radians))
-                      .angularVelocity(
-                          m_velocity.mut_replace(
-                              (pivotEncoder.getVelocity() * Math.PI), RadiansPerSecond));
-                },
-                this));
   }
 
   // Acts as a filter calculating setpoints for the PID control
@@ -126,7 +98,29 @@ public class IntakePivot extends SubsystemBase {
         .until(this::getDone);
   }
 
-  public SysIdRoutine getAngularRoutine() {
-    return angularRoutine;
+  // Return SysId Routine
+  public SysIdRoutine getRoutine(SysIdType type) {
+    // Mutable holder for unit-safe voltage values, persisted to avoid reallocation.
+    MutableMeasure<Voltage> appliedVoltage = mutable(Volts.of(0));
+    // Mutable holder for unit-safe angular distance values, persisted to avoid reallocation.
+    MutableMeasure<Angle> angle = mutable(Radians.of(0));
+    // Mutable holder for unit-safe angular velocity values, persisted to avoid reallocation.
+    MutableMeasure<Velocity<Angle>> velocity = mutable(RadiansPerSecond.of(0));
+    return new SysIdRoutine(
+        new SysIdRoutine.Config(),
+        new SysIdRoutine.Mechanism(
+            (volts) -> {
+              pivotMotor.setVoltage(volts.magnitude());
+            },
+            (log) -> {
+              pivotEncoder.setVelocityConversionFactor(Math.PI);
+              log.motor("intakePivotMotor")
+                  .voltage(appliedVoltage.mut_replace(pivotMotor.getBusVoltage(), Volts))
+                  .angularPosition(angle.mut_replace(pivotEncoder.getPosition() * Math.PI, Radians))
+                  .angularVelocity(
+                      velocity.mut_replace(
+                          (pivotEncoder.getVelocity() * Math.PI), RadiansPerSecond));
+            },
+            this));
   }
 }
