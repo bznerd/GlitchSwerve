@@ -8,6 +8,7 @@ import com.pathplanner.lib.util.HolonomicPathFollowerConfig;
 import com.pathplanner.lib.util.PIDConstants;
 import com.pathplanner.lib.util.ReplanningConfig;
 import com.revrobotics.CANSparkBase.IdleMode;
+import edu.wpi.first.math.geometry.Rotation2d;
 import edu.wpi.first.math.geometry.Rotation3d;
 import edu.wpi.first.math.geometry.Transform3d;
 import edu.wpi.first.math.geometry.Translation2d;
@@ -232,16 +233,35 @@ public class Constants {
 
   public static class kShooter {
     public static class kPivot {
-      public static int pivot1MotorID = 22; // TODO GET REAL ID
-      public static int pivot2MotorID = 23; // TODO GET REAL
+      public static final int pivot1MotorID = 22; // TODO GET REAL ID
+      public static final int pivot2MotorID = 23; // TODO GET REAL
 
       // PD
-      public static double kP = 0; // TODO get Real
-      public static double kD = 0; // TODO get Real
-      public static double minPIDOutput = -1.0;
-      public static double maxPIDOutput = 1.0;
-      public static final double intakePivotEncoderPositionFactor = (2 * Math.PI); // radians
-      public static double period = 0.02;
+      public static final double kP = 0; // TODO get Real
+      public static final double kD = 0; // TODO get Real
+      public static final double minPIDOutput = -1.0;
+      public static final double maxPIDOutput = 1.0;
+
+      // Encoder
+      public static final int encoderChannelA = 5;
+      public static final int encoderChannelB = 6;
+      public static final boolean invertEncoder = false;
+      public static final double gearRatio = 2;
+      public static final double distancePerPulse = (2 * Math.PI) * gearRatio / 2048; // radians
+      public static final Rotation2d cogOffset = Rotation2d.fromRadians(0); // TODO find this value
+
+      // Positions
+      public enum Position {
+        DOWN(Rotation2d.fromDegrees(0)),
+        CLIMB(Rotation2d.fromDegrees(0)),
+        AMP(Rotation2d.fromDegrees(0));
+
+        public final Rotation2d angle;
+
+        private Position(Rotation2d angle) {
+          this.angle = angle;
+        }
+      }
 
       // FF
       public static double kS = 0; // TODO GET REAL
